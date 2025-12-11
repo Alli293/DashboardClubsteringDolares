@@ -524,211 +524,264 @@ st.markdown("---")
 # ============================================================
 
 # ============================================================
-# SECCIÓN 6: PERFIL DE CLUSTERS TOP - VERSIÓN SIMPLIFICADA
+# SECCIÓN 6: PERFIL DE CLUSTERS - SOLO MÉTRICAS
 # ============================================================
 
 st.header("Perfil Comparativo de Clusters")
 
-# Seleccionar top clusters para análisis
-top_n = st.slider("Número de clusters a comparar:", 2, 5, 3)
+# Seleccionar número de clusters para comparar
+top_n = st.slider("Número de clusters a comparar:", 2, len(cluster_summary_filtered), min(3, len(cluster_summary_filtered)))
 top_clusters = cluster_summary_filtered.head(top_n).index.tolist()
 
-# Definir métricas para radar
-metrics = ['Salario Promedio', 'Número Empleos', 'Estabilidad', 'Diversidad Categorías', 'Rango Salarial']
+st.subheader("Métricas Clave por Cluster")
 
-# Preparar datos para radar
-radar_data = {}
+# Calcular métricas avanzadas para cada cluster
+cluster_metrics = []
+
 for cluster in top_clusters:
     cluster_df = df_filtered[df_filtered['cluster_nombre'] == cluster]
-    
-    # Calcular métricas básicas
-    salario_prom = cluster_df['salario_limpio'].mean()
-    n_empleos = len(cluster_df)
-    
-    # Calcular rango salarial relativo
-    if salario_prom > 0:
-        rango_salarial = (cluster_df['salario_limpio'].max() - cluster_df['salario_limpio'].min()) / salario_prom
-    else:
-        rango_salarial = 0
-    
-    # Calcular estabilidad (inversa del rango)
-    estabilidad = max(0, min(100, 100 - (rango_salarial * 20)))
+    row = cluster_summary_filtered.loc[cluster]
     
     # Calcular diversidad de categorías
-    if len(cluster_df) > 0:
-        diversidad = cluster_df['Categora_refinada'].nunique() / len(cluster_df)
-    else:
-        diversidad = 0
+    categorias_unicas = cluster_df['Categora_refinada'].nunique()
+    diversidad = categorias_unicas / row['n_empleos'] if row['n_empleos'] > 0 else 0
     
-    # Almacenar métricas (usar valores normalizados para el radar)
-    radar_data[cluster] = {
-        'salario': salario_prom,
-        'empleos': n_empleos,
-        'estabilidad': estabilidad,
-        'diversidad': diversidad * 100,  # Convertir a porcentaje
-        'rango': 100 - (rango_salarial * 30)  # Invertir para mejor visualización
-    }
-
-# Normalizar valores para el radar (0-1)
-all_values = []
-for cluster_data in radar_data.values():
-    all_values.append(list(cluster_data.values()))
-
-all_values_array = np.array(all_values)
-normalized_data = {}
-for i, cluster in enumerate(top_clusters):
-    cluster_values = all_values_array[i]
-    normalized = (cluster_values - cluster_values.min()) / (cluster_values.max() - cluster_values.min() + 1e-10)
-    normalized_data[cluster] = normalized.tolist()
-
-# Crear gráfico de radar
-fig_radar = go.Figure()
-
-# Paleta de colores profesional
-colors_fill = [
-    'rgba(255, 99, 132, 0.2)',   # Rojo suave
-    'rgba(54, 162, 235, 0.2)',   # Azul suave
-    'rgba(255, 206, 86, 0.2)',   # Amarillo suave
-    'rgba(75, 192, 192, 0.2)',   # Verde suave
-    'rgba(153, 102, 255, 0.2)'   # Púrpura suave
-]
-
-colors_line = [
-    'rgb(255, 99, 132)',    # Rojo
-    'rgb(54, 162, 235)',    # Azul
-    'rgb(255, 206, 86)',    # Amarillo
-    'rgb(75, 192, 192)',    # Verde
-    'rgb(153, 102, 255)'    # Púrpura
-]
-
-for idx, cluster in enumerate(top_clusters):
-    cluster_name = cluster.replace('Cluster_', '')
-    values = normalized_data[cluster]
-    values += values[:1]  # Cerrar el círculo
+    # Calcular rango salarial relativo
+    rango_salarial = (row['salario_max'] - row['salario_min']) / row['salario_promedio'] if row['salario_promedio'] > 0 else 0
     
-    # Crear texto para hover
-    raw_data = radar_data[cluster]
-    hover_text = []
-    for i, metric in enumerate(metrics):
-        if metric == 'Salario Promedio':
-            hover_text.append(f"{metric}: ${raw_data['salario']:,.0f}")
-        elif metric == 'Número Empleos':
-            hover_text.append(f"{metric}: {int(raw_data['empleos'])}")
-        elif metric == 'Estabilidad':
-            hover_text.append(f"{metric}: {raw_data['estabilidad']:.1f}%")
-        elif metric == 'Diversidad Categorías':
-            hover_text.append(f"{metric}: {raw_data['diversidad']:.1f}%")
-        elif metric == 'Rango Salarial':
-            hover_text.append(f"{metric}: {raw_data['rango']:.1f}")
+    # Calcular estabilidad (inversa del rango)
+    estabilidad = max(0, 100 - (rango_salarial * 30))
     
-    hover_text += [hover_text[0]]  # Cerrar el círculo
-    
-    fig_radar.add_trace(go.Scatterpolar(
-        r=values,
-        theta=metrics + [metrics[0]],
-        name=cluster_name,
-        fill='toself',
-        fillcolor=colors_fill[idx % len(colors_fill)],
-        line=dict(color=colors_line[idx % len(colors_line)], width=2),
-        hoverinfo='text',
-        hovertext=hover_text
-    ))
-
-# Configurar layout del radar
-fig_radar.update_layout(
-    height=600,
-    polar=dict(
-        radialaxis=dict(
-            visible=True,
-            range=[0, 1],
-            showticklabels=False,
-            showline=False
-        ),
-        angularaxis=dict(
-            tickfont=dict(size=12),
-            direction='clockwise'
-        ),
-        bgcolor='rgba(240, 240, 240, 0.1)'
-    ),
-    title=dict(
-        text=f"Comparativa de Top {top_n} Clusters",
-        font=dict(size=18, family="Arial, sans-serif")
-    ),
-    showlegend=True,
-    legend=dict(
-        orientation="h",
-        yanchor="bottom",
-        y=1.02,
-        xanchor="center",
-        x=0.5,
-        font=dict(size=12)
-    ),
-    margin=dict(l=50, r=50, t=80, b=50),
-    paper_bgcolor='rgba(255, 255, 255, 0.9)',
-    plot_bgcolor='rgba(255, 255, 255, 0.9)'
-)
-
-st.plotly_chart(fig_radar, use_container_width=True)
-
-# Mostrar tabla con valores reales
-st.subheader("Valores Reales de las Métricas")
-
-# Crear tabla resumen
-summary_data = []
-for cluster in top_clusters:
-    cluster_name = cluster.replace('Cluster_', '')
-    data = radar_data[cluster]
-    summary_data.append({
-        'Cluster': cluster_name,
-        'Salario Promedio': f"${data['salario']:,.0f}",
-        'Número Empleos': data['empleos'],
-        'Estabilidad': f"{data['estabilidad']:.1f}%",
-        'Diversidad': f"{data['diversidad']:.1f}%",
-        'Rango Salarial': f"{data['rango']:.1f}"
+    cluster_metrics.append({
+        'Cluster': cluster.replace('Cluster_', ''),
+        'Salario Promedio': row['salario_promedio'],
+        'Empleos': row['n_empleos'],
+        'Rango Salarial': row['salario_max'] - row['salario_min'],
+        'Estabilidad (%)': estabilidad,
+        'Diversidad (%)': diversidad * 100,
+        'Categoría Principal': row['categoria_principal'],
+        'Categorías Únicas': categorias_unicas,
+        'Salario Mínimo': row['salario_min'],
+        'Salario Máximo': row['salario_max']
     })
 
-summary_df = pd.DataFrame(summary_data)
-st.dataframe(summary_df, use_container_width=True, hide_index=True)
-# ============================================================
-# SECCIÓN 7: RESUMEN Y RECOMENDACIONES
-# ============================================================
+metrics_df = pd.DataFrame(cluster_metrics)
 
-st.markdown("---")
-st.header("Conclusiones y Recomendaciones")
-
-col1, col2 = st.columns(2)
+# Mostrar tabla principal de métricas
+col1, col2, col3 = st.columns([2, 1, 1])
 
 with col1:
-    st.subheader("Principales Hallazgos")
+    st.subheader("Tabla de Métricas")
     
-    # Hallazgo 1: Cluster líder
-    top_cluster = cluster_summary_filtered.iloc[0]
-    st.info(f"""
-    **Cluster Líder**: {top_cluster.name.replace('Cluster_', '')}
-    - Salario promedio: ${top_cluster['salario_promedio']:,.0f}
-    - {top_cluster['n_empleos']} empleos analizados
-    - Categoría principal: {top_cluster['categoria_principal']}
-    """)
+    # Formatear tabla para visualización
+    display_df = metrics_df.copy()
+    display_df['Salario Promedio'] = display_df['Salario Promedio'].apply(lambda x: f"${x:,.0f}")
+    display_df['Rango Salarial'] = display_df['Rango Salarial'].apply(lambda x: f"${x:,.0f}")
+    display_df['Salario Mínimo'] = display_df['Salario Mínimo'].apply(lambda x: f"${x:,.0f}")
+    display_df['Salario Máximo'] = display_df['Salario Máximo'].apply(lambda x: f"${x:,.0f}")
+    display_df['Estabilidad (%)'] = display_df['Estabilidad (%)'].apply(lambda x: f"{x:.1f}%")
+    display_df['Diversidad (%)'] = display_df['Diversidad (%)'].apply(lambda x: f"{x:.1f}%")
     
-    # Hallazgo 2: Mejor relación valor
-    if len(cluster_summary_filtered) > 1:
-        best_value = cluster_summary_filtered.iloc[1]
-        st.success(f"""
-        **Mejor Relación Valor**: {best_value.name.replace('Cluster_', '')}
-        - Salario: ${best_value['salario_promedio']:,.0f}
-        - {best_value['n_empleos']} oportunidades disponibles
-        - Excelente equilibrio salario-estabilidad
-        """)
+    st.dataframe(
+        display_df[['Cluster', 'Salario Promedio', 'Empleos', 'Estabilidad (%)', 'Diversidad (%)', 'Categoría Principal']],
+        use_container_width=True,
+        hide_index=True
+    )
 
 with col2:
-    st.subheader("Recomendaciones Estratégicas")
+    st.subheader("Ranking Salarial")
+    ranking_df = metrics_df.sort_values('Salario Promedio', ascending=False)
     
-    st.markdown("""
-    1. **Enfoque en Crecimiento**: Desarrollar habilidades hacia clusters de mayor salario
-    2. **Diversificación**: Explorar múltiples categorías dentro del cluster objetivo
-    3. **Planificación de Carrera**: Seguir trayectorias probadas para maximizar ingresos
-    4. **Especialización**: Profundizar en categorías con alta demanda y remuneración
+    for i, row in ranking_df.iterrows():
+        st.metric(
+            label=f"{row['Cluster']}",
+            value=f"${row['Salario Promedio']:,.0f}",
+            delta=f"{row['Empleos']} empleos"
+        )
+
+with col3:
+    st.subheader("Mejor Estabilidad")
+    estabilidad_df = metrics_df.sort_values('Estabilidad (%)', ascending=False)
+    
+    for i, row in estabilidad_df.head(3).iterrows():
+        st.metric(
+            label=f"{row['Cluster']}",
+            value=f"{row['Estabilidad (%)']:.1f}%",
+            delta=f"${row['Salario Promedio']:,.0f}"
+        )
+
+st.markdown("---")
+
+# Gráficos simples de comparación
+st.subheader("Comparativa Visual de Métricas")
+
+col_chart1, col_chart2 = st.columns(2)
+
+with col_chart1:
+    # Gráfico de barras para salarios
+    fig_salarios = px.bar(
+        metrics_df,
+        x='Cluster',
+        y='Salario Promedio',
+        title='Salario Promedio por Cluster',
+        color='Cluster',
+        color_discrete_sequence=px.colors.qualitative.Set3[:len(metrics_df)],
+        text_auto='.0f'
+    )
+    fig_salarios.update_traces(
+        texttemplate='$%{text:,.0f}',
+        textposition='outside'
+    )
+    fig_salarios.update_layout(
+        height=400,
+        showlegend=False,
+        yaxis_title="Salario (USD)",
+        xaxis_title=""
+    )
+    st.plotly_chart(fig_salarios, use_container_width=True)
+
+with col_chart2:
+    # Gráfico de burbujas simplificado
+    fig_burbujas = px.scatter(
+        metrics_df,
+        x='Salario Promedio',
+        y='Estabilidad (%)',
+        size='Empleos',
+        color='Cluster',
+        hover_name='Cluster',
+        hover_data=['Categoría Principal', 'Diversidad (%)'],
+        title='Relación Salario-Estabilidad',
+        color_discrete_sequence=px.colors.qualitative.Set3[:len(metrics_df)],
+        size_max=50
+    )
+    fig_burbujas.update_layout(
+        height=400,
+        xaxis_title="Salario Promedio (USD)",
+        yaxis_title="Estabilidad (%)"
+    )
+    st.plotly_chart(fig_burbujas, use_container_width=True)
+
+st.markdown("---")
+
+# Análisis detallado por cluster
+st.subheader("Análisis Detallado por Cluster")
+
+selected_cluster = st.selectbox(
+    "Selecciona un cluster para análisis detallado:",
+    options=metrics_df['Cluster'].tolist()
+)
+
+if selected_cluster:
+    cluster_data = metrics_df[metrics_df['Cluster'] == selected_cluster].iloc[0]
+    cluster_full_df = df_filtered[df_filtered['cluster_nombre'] == f'Cluster_{selected_cluster}']
+    
+    col_detail1, col_detail2, col_detail3, col_detail4 = st.columns(4)
+    
+    with col_detail1:
+        st.metric("Salario Promedio", f"${cluster_data['Salario Promedio']:,.0f}")
+    
+    with col_detail2:
+        st.metric("Total Empleos", cluster_data['Empleos'])
+    
+    with col_detail3:
+        st.metric("Estabilidad", f"{cluster_data['Estabilidad (%)']:.1f}%")
+    
+    with col_detail4:
+        st.metric("Diversidad", f"{cluster_data['Diversidad (%)']:.1f}%")
+    
+    st.markdown("---")
+    
+    # Distribución de categorías en el cluster seleccionado
+    if len(cluster_full_df) > 0:
+        st.write(f"**Distribución de categorías en {selected_cluster}:**")
+        
+        categorias_dist = cluster_full_df['Categora_refinada'].value_counts().head(10)
+        
+        col_cat1, col_cat2 = st.columns(2)
+        
+        with col_cat1:
+            fig_categorias = px.pie(
+                values=categorias_dist.values,
+                names=categorias_dist.index,
+                title=f'Top Categorías en {selected_cluster}',
+                hole=0.3
+            )
+            fig_categorias.update_layout(height=400)
+            st.plotly_chart(fig_categorias, use_container_width=True)
+        
+        with col_cat2:
+            st.write("**Categorías principales:**")
+            for categoria, count in categorias_dist.head(5).items():
+                porcentaje = (count / len(cluster_full_df)) * 100
+                st.write(f"• {categoria}: {count} empleos ({porcentaje:.1f}%)")
+            
+            st.write(f"\n**Categoría principal:** {cluster_data['Categoría Principal']}")
+            st.write(f"**Categorías únicas:** {cluster_data['Categorías Únicas']}")
+    
+    # Empleos representativos
+    st.write(f"**Empleos representativos en {selected_cluster}:**")
+    empleos_representativos = cluster_full_df.nlargest(5, 'salario_limpio')[['Categora_refinada', 'salario_limpio']]
+    
+    for _, empleo in empleos_representativos.iterrows():
+        st.write(f"• {empleo['Categora_refinada']}: ${empleo['salario_limpio']:,.0f}")
+
+# Resumen ejecutivo
+st.markdown("---")
+st.subheader("Resumen Ejecutivo")
+
+col_res1, col_res2 = st.columns(2)
+
+with col_res1:
+    mejor_salario = metrics_df.loc[metrics_df['Salario Promedio'].idxmax()]
+    mejor_estabilidad = metrics_df.loc[metrics_df['Estabilidad (%)'].idxmax()]
+    
+    st.info(f"""
+    **Cluster con Mayor Salario: {mejor_salario['Cluster']}**
+    - Salario promedio: ${mejor_salario['Salario Promedio']:,.0f}
+    - {mejor_salario['Empleos']} empleos disponibles
+    - Estabilidad: {mejor_salario['Estabilidad (%)']:.1f}%
     """)
+    
+    st.success(f"""
+    **Cluster más Estable: {mejor_estabilidad['Cluster']}**
+    - Estabilidad: {mejor_estabilidad['Estabilidad (%)']:.1f}%
+    - Salario promedio: ${mejor_estabilidad['Salario Promedio']:,.0f}
+    - {mejor_estabilidad['Empleos']} empleos disponibles
+    """)
+
+with col_res2:
+    # Recomendaciones basadas en los datos
+    st.write("**Recomendaciones:**")
+    
+    # Encontrar el mejor balance
+    metrics_df['Score_Balance'] = (
+        (metrics_df['Salario Promedio'] / metrics_df['Salario Promedio'].max()) * 0.5 +
+        (metrics_df['Estabilidad (%)'] / 100) * 0.3 +
+        (metrics_df['Diversidad (%)'] / 100) * 0.2
+    )
+    
+    mejor_balance = metrics_df.loc[metrics_df['Score_Balance'].idxmax()]
+    
+    st.write(f"1. **Para mejor balance**: Considerar **{mejor_balance['Cluster']}**")
+    st.write(f"   • Score de balance: {mejor_balance['Score_Balance']:.2f}/1.0")
+    st.write(f"   • Salario: ${mejor_balance['Salario Promedio']:,.0f}")
+    st.write(f"   • Estabilidad: {mejor_balance['Estabilidad (%)']:.1f}%")
+    
+    st.write(f"2. **Para máximo salario**: **{mejor_salario['Cluster']}**")
+    st.write(f"3. **Para estabilidad**: **{mejor_estabilidad['Cluster']}**")
+
+# Opción para descargar el análisis
+st.markdown("---")
+st.subheader("Exportar Análisis")
+
+csv_metrics = metrics_df.to_csv(index=False).encode('utf-8')
+st.download_button(
+    label="📥 Descargar Métricas de Clusters",
+    data=csv_metrics,
+    file_name=f"metricas_clusters_top{top_n}.csv",
+    mime="text/csv",
+    help="Descarga las métricas detalladas de todos los clusters analizados"
+)
 
 # ============================================================
 # SECCIÓN 8: EXPORTACIÓN DE DATOS
