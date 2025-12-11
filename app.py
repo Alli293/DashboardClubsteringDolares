@@ -98,7 +98,7 @@ def load_dual_data():
     """Cargar datos de ambos análisis (USD y CRC)"""
     try:
         # Cargar datos USD
-        df_usd = pd.read_csv('analisis_completo_crc.csv')  # Ajustar nombre según tu archivo
+        df_usd = pd.read_csv('empleos_analisis_final.csv')  # Ajustar nombre según tu archivo
         
         # Cargar datos CRC
         df_crc = pd.read_csv('resultados_finales_clusters_crc.csv')  # Archivo de clusters CRC
