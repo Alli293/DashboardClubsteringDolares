@@ -26,6 +26,111 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+
+# ============================================================
+# CSS GLOBAL OPTIMIZADO PARA MODO OSCURO
+# ============================================================
+
+st.markdown("""
+<style>
+    /* ESTILOS ADAPTATIVOS PARA MODO CLARO/OSCURO */
+    
+    /* 1. Ajustar st.metric para modo oscuro */
+    @media (prefers-color-scheme: dark) {
+        div[data-testid="stMetric"] {
+            background-color: #1e1e1e !important;
+            border: 1px solid #444 !important;
+            border-radius: 10px !important;
+            padding: 15px !important;
+            margin: 8px 0 !important;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3) !important;
+        }
+        
+        div[data-testid="stMetricLabel"] {
+            color: #e0e0e0 !important;
+            font-weight: 600 !important;
+        }
+        
+        div[data-testid="stMetricValue"] {
+            color: #4ECDC4 !important;  /* Verde azulado para destacar */
+            font-size: 24px !important;
+            font-weight: 700 !important;
+        }
+        
+        div[data-testid="stMetricDelta"] {
+            color: #aaa !important;
+        }
+    }
+    
+    /* 2. Estilos para modo claro (backwards compatibility) */
+    @media (prefers-color-scheme: light) {
+        div[data-testid="stMetric"] {
+            background-color: #f8f9fa !important;
+            border: 1px solid #dee2e6 !important;
+        }
+        
+        div[data-testid="stMetricLabel"] {
+            color: #495057 !important;
+        }
+        
+        div[data-testid="stMetricValue"] {
+            color: #198754 !important;  /* Verde más suave para modo claro */
+        }
+        
+        div[data-testid="stMetricDelta"] {
+            color: #6c757d !important;
+        }
+    }
+    
+    /* 3. Estilos específicos para las tarjetas problemáticas */
+    .metric-card-dark {
+        background: linear-gradient(145deg, #2d2d2d, #252525) !important;
+        border: 1px solid #444 !important;
+        border-radius: 10px !important;
+        padding: 16px !important;
+        margin: 10px 0 !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.25) !important;
+        color: #ffffff !important;
+    }
+    
+    .metric-label-dark {
+        color: #e0e0e0 !important;
+        font-weight: 600 !important;
+        font-size: 14px !important;
+        margin-bottom: 5px !important;
+    }
+    
+    .metric-value-dark {
+        color: #4ECDC4 !important;
+        font-size: 26px !important;
+        font-weight: 700 !important;
+        margin: 8px 0 !important;
+    }
+    
+    .metric-delta-dark {
+        color: #aaa !important;
+        font-size: 14px !important;
+        font-weight: 500 !important;
+    }
+    
+    /* 4. Ajustes generales para modo oscuro */
+    .stApp[data-theme="dark"] {
+        /* Mejorar contraste general */
+        --background-color: #0e1117;
+        --secondary-background-color: #262730;
+        --text-color: #fafafa;
+    }
+    
+    .stApp[data-theme="dark"] h1,
+    .stApp[data-theme="dark"] h2,
+    .stApp[data-theme="dark"] h3,
+    .stApp[data-theme="dark"] h4,
+    .stApp[data-theme="dark"] .stMarkdown {
+        color: #f0f2f6 !important;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 # ============================================================
 # FUNCIONES DE CARGA Y PREPARACIÓN DE DATOS
 # ============================================================
@@ -860,30 +965,3 @@ st.markdown("""
 3. Consulte el perfil de clusters para identificar oportunidades alineadas con su perfil
 """)
 
-# ============================================================
-# ESTILOS CSS ADICIONALES
-# ============================================================
-
-st.markdown("""
-<style>
-    .stMetric {
-        background-color: #f0f2f6;
-        padding: 10px;
-        border-radius: 10px;
-        border-left: 4px solid #4ECDC4;
-    }
-    
-    .stPlotlyChart {
-        border-radius: 10px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    
-    h1, h2, h3 {
-        color: #2c3e50;
-    }
-    
-    .stButton button {
-        width: 100%;
-    }
-</style>
-""", unsafe_allow_html=True)
