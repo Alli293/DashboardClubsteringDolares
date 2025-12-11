@@ -16,7 +16,6 @@ warnings.filterwarnings('ignore')
 
 st.set_page_config(
     page_title="Dashboard - Análisis de Clusters Salariales",
-    page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -288,7 +287,7 @@ def load_data():
 # ============================================================
 
 # Título principal
-st.title("📊 Dashboard de Análisis de Clusters Salariales")
+st.title(" Dashboard de Análisis de Clusters Salariales")
 st.markdown("---")
 
 # Cargar datos
@@ -1108,7 +1107,7 @@ st.subheader("Exportar Análisis")
 
 csv_metrics = metrics_df.to_csv(index=False).encode('utf-8')
 st.download_button(
-    label="📥 Descargar Métricas de Clusters",
+    label="Descargar Métricas de Clusters",
     data=csv_metrics,
     file_name=f"metricas_clusters_top{top_n}.csv",
     mime="text/csv",
@@ -1128,7 +1127,7 @@ with col_exp1:
     # Exportar datos completos
     csv_completo = df_filtered.to_csv(index=False).encode('utf-8')
     st.download_button(
-        label="📥 Descargar Datos Completos",
+        label="Descargar Datos Completos",
         data=csv_completo,
         file_name="datos_analisis_clusters.csv",
         mime="text/csv",
@@ -1141,7 +1140,7 @@ with col_exp2:
     resumen_export.index = [c.replace('Cluster_', '') for c in resumen_export.index]
     csv_resumen = resumen_export.to_csv(index=True).encode('utf-8')
     st.download_button(
-        label="📊 Descargar Resumen por Cluster",
+        label="Descargar Resumen por Cluster",
         data=csv_resumen,
         file_name="resumen_clusters.csv",
         mime="text/csv",
@@ -1166,7 +1165,7 @@ with col_exp3:
     
     csv_trayectorias = trayectorias_df.to_csv(index=False).encode('utf-8')
     st.download_button(
-        label="🛤️ Descargar Trayectorias",
+        label=" Descargar Trayectorias",
         data=csv_trayectorias,
         file_name="trayectorias_profesionales.csv",
         mime="text/csv",
