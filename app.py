@@ -868,17 +868,7 @@ if categoria_col in df_filtered.columns:
     st.plotly_chart(fig_heatmap, use_container_width=True)
     
     # Distribución de categorías principales
-    st.subheader("Categorías Principales por Cluster")
-    for cluster, row in cluster_filtered.iterrows():
-        col_cat1, col_cat2 = st.columns([1, 4])
-        with col_cat1:
-            st.markdown(f"**{cluster}**")
-        with col_cat2:
-            st.write(f"{row['categoria_principal']} ({currency_symbol}{row['salario_promedio']:,.0f} promedio)")
-else:
-    st.warning(f"No se encontró la columna de categorías: {categoria_col}")
-
-st.markdown("---")
+  
 
 # ============================================================
 # SECCIÓN 7: PERFIL DETALLADO DE CLUSTERS
