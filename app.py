@@ -556,6 +556,7 @@ for cluster in top_clusters:
     }
 
 # Crear gráfico de radar
+# Crear gráfico de radar
 fig_radar = go.Figure()
 
 for idx, cluster in enumerate(top_clusters):
@@ -573,31 +574,27 @@ for idx, cluster in enumerate(top_clusters):
         f"Rango: {values_raw[4]:.2f}"
     ]
     
+    # Generar color usando una paleta de Plotly
+    color = px.colors.qualitative.Set3[idx % len(px.colors.qualitative.Set3)]
+    # Convertir color hexadecimal a rgba con transparencia
+    # Si el color es hexadecimal, lo convertimos a rgba
+    import matplotlib.colors as mcolors
+    # Convertir hex a rgb
+    rgb = mcolors.hex2color(color)  # Devuelve (r, g, b) en [0, 1]
+    rgb = [int(c * 255) for c in rgb]
+    fillcolor = f'rgba({rgb[0]}, {rgb[1]}, {rgb[2]}, 0.2)'
+    line_color = f'rgba({rgb[0]}, {rgb[1]}, {rgb[2]}, 1)'
+    
     fig_radar.add_trace(go.Scatterpolar(
         r=values_normalized,
         theta=metrics + [metrics[0]],  # Cerrar el círculo
         name=cluster_name,
         fill='toself',
-        fillcolor=f'rgba{tuple(list(plt.cm.Set3(idx / len(top_clusters))[:3]) + [0.2])}',
-        line=dict(color=plt.cm.Set3(idx / len(top_clusters))),
+        fillcolor=fillcolor,
+        line=dict(color=line_color),
         hoverinfo='text',
         hovertext=hover_text + [hover_text[0]]  # Cerrar el círculo
     ))
-
-fig_radar.update_layout(
-    height=600,
-    polar=dict(
-        radialaxis=dict(
-            visible=True,
-            range=[0, 1]
-        )
-    ),
-    showlegend=True,
-    title=f"Comparativa de Top {top_n} Clusters"
-)
-
-st.plotly_chart(fig_radar, use_container_width=True)
-
 # ============================================================
 # SECCIÓN 7: RESUMEN Y RECOMENDACIONES
 # ============================================================
