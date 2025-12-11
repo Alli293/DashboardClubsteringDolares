@@ -1036,28 +1036,19 @@ with col_rec2:
         """)
 
 # Plan de mejora continua
-st.subheader(" Plan de Mejora del Análisis")
+st.subheader(" Posibles rutas en base a los resultados ")
 col_plan1, col_plan2, col_plan3 = st.columns(3)
-
-with col_plan1:
-    st.markdown("""
-    **🔴 ALTA PRIORIDAD:**
-    1. Aumentar dataset a >200 muestras
-    2. Añadir variable "años experiencia"
-    3. Validar outliers extremos
-    """)
 
 with col_plan2:
     st.markdown("""
-    **🟡 MEDIA PRIORIDAD:**
+    **Corto Plazo:**
     1. Segmentar por ubicación geográfica
-    2. Incluir datos de otras fuentes
-    3. Añadir análisis de habilidades
+    2. Añadir análisis de habilidades
     """)
 
 with col_plan3:
     st.markdown("""
-    **🟢 BAJA PRIORIDAD:**
+    **Largo plazo:**
     1. Análisis temporal (evolución)
     2. Comparación con benchmarks
     3. Modelo predictivo salarial
