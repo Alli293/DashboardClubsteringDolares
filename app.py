@@ -103,30 +103,108 @@ def load_dual_data():
         # Cargar datos CRC
         df_crc = pd.read_csv('resultados_finales_clusters_crc.csv')  # Archivo de clusters CRC
         
+        # Función para asignar categorías únicas por cluster
+        def assign_unique_categories(df, cluster_col, category_col):
+            """Asigna categorías únicas a cada cluster, evitando repeticiones"""
+            # Obtener las categorías más frecuentes por cluster
+            cluster_cats = df.groupby(cluster_col)[category_col].apply(
+                lambda x: x.value_counts().index[0] if len(x) > 0 else 'N/A'
+            ).reset_index()
+            cluster_cats.columns = ['cluster', 'top_category']
+            
+            # Ordenar clusters por tamaño (mayor a menor)
+            cluster_sizes = df[cluster_col].value_counts().reset_index()
+            cluster_sizes.columns = ['cluster', 'size']
+            
+            # Asignar categorías únicas
+            assigned_categories = set()
+            final_mapping = {}
+            
+            # Para cada cluster (ordenado por tamaño)
+            for _, row in cluster_sizes.merge(cluster_cats, on='cluster').iterrows():
+                cluster = row['cluster']
+                top_cat = row['top_category']
+                
+                # Si la categoría principal ya está asignada, buscar la siguiente
+                if top_cat in assigned_categories:
+                    # Obtener todas las categorías de este cluster ordenadas por frecuencia
+                    all_cats = df[df[cluster_col] == cluster][category_col].value_counts()
+                    
+                    # Buscar la primera categoría no asignada
+                    assigned = False
+                    for cat, _ in all_cats.items():
+                        if cat not in assigned_categories:
+                            final_mapping[cluster] = cat
+                            assigned_categories.add(cat)
+                            assigned = True
+                            break
+                    
+                    # Si todas están asignadas, usar la principal de todos modos
+                    if not assigned:
+                        final_mapping[cluster] = top_cat
+                        assigned_categories.add(top_cat)
+                else:
+                    final_mapping[cluster] = top_cat
+                    assigned_categories.add(top_cat)
+            
+            return final_mapping
+        
         # Preparar datos USD
         if 'cluster_nombre' in df_usd.columns:
+            # Asignar categorías únicas
+            unique_cats_usd = assign_unique_categories(
+                df_usd, 
+                'cluster_nombre', 
+                'Categora_refinada' if 'Categora_refinada' in df_usd.columns else 
+                'categoria_refinada' if 'categoria_refinada' in df_usd.columns else 
+                'Categoria'
+            )
+            
             cluster_usd = df_usd.groupby('cluster_nombre').agg({
-                'salario_limpio': ['mean', 'min', 'max', 'count'],
-                'Categora_refinada': lambda x: x.value_counts().index[0] if len(x) > 0 else 'N/A'
+                'salario_limpio': ['mean', 'min', 'max', 'count']
             }).round(0)
             
-            cluster_usd.columns = ['salario_promedio', 'salario_min', 'salario_max', 'n_empleos', 'categoria_principal']
+            cluster_usd.columns = ['salario_promedio', 'salario_min', 'salario_max', 'n_empleos']
+            
+            # Asignar las categorías únicas
+            cluster_usd['categoria_principal'] = cluster_usd.index.map(unique_cats_usd)
+            
+            # Para cualquier cluster sin categoría, asignar "No Especificado"
+            cluster_usd['categoria_principal'] = cluster_usd['categoria_principal'].fillna('No Especificado')
+            
             cluster_usd = cluster_usd.sort_values('salario_promedio', ascending=False)
         else:
             cluster_usd = pd.DataFrame()
         
         # Preparar datos CRC
         if 'cluster_final' in df_crc.columns:
+            # Determinar columna de categoría para CRC
+            crc_cat_col = 'categoria_refinada_crc' if 'categoria_refinada_crc' in df_crc.columns else 'Categora_refinada'
+            
+            if crc_cat_col not in df_crc.columns:
+                # Buscar cualquier columna con "categor" en el nombre
+                cat_cols = [col for col in df_crc.columns if 'categor' in col.lower()]
+                crc_cat_col = cat_cols[0] if cat_cols else 'No Especificado'
+            
+            # Asignar categorías únicas
+            unique_cats_crc = assign_unique_categories(df_crc, 'cluster_final', crc_cat_col)
+            
             # Asegurar que tenemos la columna de salario CRC
             if 'crc_limpio' not in df_crc.columns and 'salario_limpio' in df_crc.columns:
                 df_crc = df_crc.rename(columns={'salario_limpio': 'crc_limpio'})
             
             cluster_crc = df_crc.groupby('cluster_final').agg({
-                'crc_limpio': ['mean', 'min', 'max', 'count'],
-                'categoria_refinada_crc': lambda x: x.value_counts().index[0] if len(x) > 0 else 'N/A'
+                'crc_limpio': ['mean', 'min', 'max', 'count']
             }).round(0)
             
-            cluster_crc.columns = ['salario_promedio', 'salario_min', 'salario_max', 'n_empleos', 'categoria_principal']
+            cluster_crc.columns = ['salario_promedio', 'salario_min', 'salario_max', 'n_empleos']
+            
+            # Asignar las categorías únicas
+            cluster_crc['categoria_principal'] = cluster_crc.index.map(unique_cats_crc)
+            
+            # Para cualquier cluster sin categoría, asignar "No Especificado"
+            cluster_crc['categoria_principal'] = cluster_crc['categoria_principal'].fillna('No Especificado')
+            
             cluster_crc = cluster_crc.sort_values('salario_promedio', ascending=False)
         else:
             cluster_crc = pd.DataFrame()
@@ -139,9 +217,10 @@ def load_dual_data():
         **Soluciones posibles:**
         1. Asegúrate de que los archivos estén en la misma carpeta que el dashboard
         2. Verifica los nombres de los archivos:
-           - Para USD: 'analisis_completo_crc.csv' 
+           - Para USD: 'empleos_analisis_final.csv' 
            - Para CRC: 'resultados_finales_clusters_crc.csv'
         3. Si los nombres son diferentes, ajusta el código
+        4. Verifica que las columnas de categorías existan en tus archivos
         """)
         return None, None, None, None
 
@@ -220,7 +299,7 @@ with st.sidebar:
         help="Visualiza los datos en colones o en dólares (conversión automática)"
     )
     
-    # Tasa de cambi personalizable
+    # Tasa de cambio personalizable
     st.subheader(" Tasa de Cambio")
     exchange_rate = st.slider(
         "Tasa de cambio CRC/USD:",
@@ -612,14 +691,28 @@ with col_pyramid2:
     
     st.plotly_chart(fig_donut, use_container_width=True)
     
-    # Mostrar tabla resumen
+    # Mostrar tabla resumen con categorías únicas
     st.subheader("Resumen por Cluster")
     summary_table = cluster_filtered.copy()
     summary_table['salario_promedio'] = summary_table['salario_promedio'].apply(lambda x: f"{currency_symbol}{x:,.0f}")
+    summary_table['categoria_principal'] = summary_table['categoria_principal'].apply(lambda x: x[:30] + '...' if len(x) > 30 else x)
+    
+    # Verificar si hay categorías duplicadas
+    cat_counts = summary_table['categoria_principal'].value_counts()
+    duplicated_cats = cat_counts[cat_counts > 1].index.tolist()
+    
+    if duplicated_cats:
+        st.warning(f"⚠️ Se encontraron {len(duplicated_cats)} categorías duplicadas")
+    
     st.dataframe(
         summary_table[['salario_promedio', 'n_empleos', 'categoria_principal']],
         use_container_width=True,
-        height=300
+        height=300,
+        column_config={
+            "salario_promedio": "Salario Promedio",
+            "n_empleos": "N° Empleos",
+            "categoria_principal": "Categoría Principal (Única)"
+        }
     )
 
 st.markdown("---")
@@ -633,7 +726,12 @@ st.header(" Análisis de Salario vs Estabilidad")
 # Calcular métricas de estabilidad
 stability_data = []
 for cluster, row in cluster_filtered.iterrows():
-    cluster_df = df_filtered[df_filtered[cluster_column] == cluster] if cluster_column in df_filtered.columns else pd.DataFrame()
+    if cluster_column in df_filtered.columns:
+        cluster_df = df_filtered[df_filtered[cluster_column] == cluster]
+    else:
+        # Si no existe la columna de cluster, usar índice del cluster_summary
+        # Esto es un fallback por si hay inconsistencias
+        cluster_df = pd.DataFrame()
     
     if len(cluster_df) > 0:
         # Calcular estabilidad (menor rango = mayor estabilidad)
@@ -646,7 +744,20 @@ for cluster, row in cluster_filtered.iterrows():
             'n_empleos': row['n_empleos'],
             'estabilidad': min(100, max(0, stability_score)),
             'rango_salarial': salary_range,
-            'categoria': row['categoria_principal']
+            'categoria': row['categoria_principal'] if 'categoria_principal' in row else 'No Especificado'
+        })
+    else:
+        # Si no hay datos específicos del cluster, usar los del resumen
+        salary_range = row['salario_max'] - row['salario_min']
+        stability_score = 100 - (salary_range / row['salario_promedio']) * 20 if row['salario_promedio'] > 0 else 0
+        
+        stability_data.append({
+            'cluster': str(cluster),
+            'salario_promedio': row['salario_promedio'],
+            'n_empleos': row['n_empleos'],
+            'estabilidad': min(100, max(0, stability_score)),
+            'rango_salarial': salary_range,
+            'categoria': row['categoria_principal'] if 'categoria_principal' in row else 'No Especificado'
         })
 
 if stability_data:
@@ -660,7 +771,7 @@ if stability_data:
         size='n_empleos',
         color='cluster',
         hover_name='cluster',
-        hover_data=['categoria', 'rango_salarial'],
+        hover_data=['categoria', 'rango_salarial', 'n_empleos'],
         size_max=60,
         color_discrete_sequence=px.colors.qualitative.Set3[:len(stability_df)],
         title=f"Relación Salario-Estabilidad por Cluster ({currency_type.split('(')[-1].replace(')', '')})"
@@ -683,6 +794,17 @@ if stability_data:
         annotation_text="Límite Estabilidad"
     )
     
+    # Añadir etiquetas para categorías únicas
+    for i, row in stability_df.iterrows():
+        fig_bubbles.add_annotation(
+            x=row['salario_promedio'],
+            y=row['estabilidad'],
+            text=row['categoria'][:15] + '...' if len(row['categoria']) > 15 else row['categoria'],
+            showarrow=False,
+            yshift=15,
+            font=dict(size=10, color="#666")
+        )
+    
     # Mejorar layout
     fig_bubbles.update_layout(
         height=600,
@@ -703,7 +825,7 @@ if stability_data:
             stable_clusters = stability_df.nlargest(3, 'estabilidad')
             for _, row in stable_clusters.iterrows():
                 st.metric(
-                    label=row['cluster'],
+                    label=f"{row['cluster']} ({row['categoria'][:15]}...)",
                     value=f"{row['estabilidad']:.1f} puntos",
                     delta=f"{currency_symbol}{row['salario_promedio']:,.0f}"
                 )
@@ -714,10 +836,40 @@ if stability_data:
             high_salary_clusters = stability_df.nlargest(3, 'salario_promedio')
             for _, row in high_salary_clusters.iterrows():
                 st.metric(
-                    label=row['cluster'],
+                    label=f"{row['cluster']} ({row['categoria'][:15]}...)",
                     value=f"{currency_symbol}{row['salario_promedio']:,.0f}",
                     delta=f"{row['estabilidad']:.1f} estabilidad"
                 )
+    
+    # Mostrar tabla de categorías únicas
+    st.subheader("Categorías Únicas por Cluster")
+    unique_cats_table = stability_df[['cluster', 'categoria', 'salario_promedio', 'n_empleos', 'estabilidad']].copy()
+    unique_cats_table['salario_promedio'] = unique_cats_table['salario_promedio'].apply(lambda x: f"{currency_symbol}{x:,.0f}")
+    unique_cats_table['estabilidad'] = unique_cats_table['estabilidad'].apply(lambda x: f"{x:.1f}%")
+    
+    # Verificar si hay categorías duplicadas
+    cat_counts = unique_cats_table['categoria'].value_counts()
+    duplicated_cats = cat_counts[cat_counts > 1].index.tolist()
+    
+    if duplicated_cats:
+        st.warning(f"⚠️ Se encontraron {len(duplicated_cats)} categorías duplicadas. Esto puede indicar clusters con perfiles similares.")
+        for dup_cat in duplicated_cats:
+            dup_clusters = unique_cats_table[unique_cats_table['categoria'] == dup_cat]['cluster'].tolist()
+            st.info(f"Categoría '{dup_cat}' aparece en clusters: {', '.join(dup_clusters)}")
+    
+    st.dataframe(
+        unique_cats_table,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "cluster": "Cluster",
+            "categoria": "Categoría Principal",
+            "salario_promedio": "Salario Promedio",
+            "n_empleos": "N° Empleos",
+            "estabilidad": "Estabilidad"
+        }
+    )
+    
 else:
     st.warning("No hay suficientes datos para calcular la estabilidad por cluster.")
 
@@ -823,9 +975,14 @@ st.markdown("---")
 st.header(" Distribución de Categorías por Cluster")
 
 # Determinar columna de categoría
-categoria_col = 'categoria_refinada_crc' if is_crc_original else 'Categora_refinada'
+if is_crc_original:
+    # Buscar cualquier columna con "categor" en el nombre para CRC
+    cat_cols = [col for col in df_filtered.columns if 'categor' in col.lower()]
+    categoria_col = cat_cols[0] if cat_cols else None
+else:
+    categoria_col = 'Categora_refinada' if 'Categora_refinada' in df_filtered.columns else 'categoria_refinada'
 
-if categoria_col in df_filtered.columns:
+if categoria_col and categoria_col in df_filtered.columns:
     # Preparar datos para heatmap
     top_categories = df_filtered[categoria_col].value_counts().head(10).index.tolist()
     heatmap_data = []
@@ -868,15 +1025,16 @@ if categoria_col in df_filtered.columns:
     st.plotly_chart(fig_heatmap, use_container_width=True)
     
     # Distribución de categorías principales
-    st.subheader("Categorías Principales por Cluster")
+    st.subheader("Categorías Únicas por Cluster")
     for cluster, row in cluster_filtered.iterrows():
         col_cat1, col_cat2 = st.columns([1, 4])
         with col_cat1:
             st.markdown(f"**{cluster}**")
         with col_cat2:
-            st.write(f"{row['categoria_principal']} ({currency_symbol}{row['salario_promedio']:,.0f} promedio)")
+            categoria = row['categoria_principal']
+            st.write(f"{categoria} ({currency_symbol}{row['salario_promedio']:,.0f} promedio)")
 else:
-    st.warning(f"No se encontró la columna de categorías: {categoria_col}")
+    st.warning(f"No se encontró la columna de categorías en el dataset")
 
 st.markdown("---")
 
@@ -922,12 +1080,10 @@ if len(cluster_filtered) > 0:
             st.metric("Estabilidad", f"{stability:.1f}%")
         
         with col_detail4:
-            if categoria_col in df_filtered.columns and len(cluster_jobs) > 0:
-                unique_cats = cluster_jobs[categoria_col].nunique()
-                diversity = (unique_cats / len(cluster_jobs)) * 100
-                st.metric("Diversidad", f"{diversity:.1f}%")
-            else:
+            if 'categoria_principal' in cluster_data:
                 st.metric("Categoría Principal", cluster_data['categoria_principal'])
+            else:
+                st.metric("Categoría Principal", "No Especificado")
         
         # Mostrar empleos del cluster
         if len(cluster_jobs) > 0:
@@ -937,7 +1093,7 @@ if len(cluster_filtered) > 0:
             display_jobs = cluster_jobs.copy()
             
             if 'Título' in display_jobs.columns:
-                display_cols = ['Título', 'Empresa', categoria_col, salary_column]
+                display_cols = ['Título', 'Empresa', categoria_col if categoria_col in display_jobs.columns else 'Categoria', salary_column]
             elif 'Categora' in display_jobs.columns:
                 display_cols = ['Categora', 'Empresa', salary_column]
             else:
@@ -958,7 +1114,7 @@ if len(cluster_filtered) > 0:
                 
                 with col_stats1:
                     st.write("**Distribución de Categorías:**")
-                    if categoria_col in cluster_jobs.columns:
+                    if categoria_col and categoria_col in cluster_jobs.columns:
                         cat_counts = cluster_jobs[categoria_col].value_counts().head(5)
                         for cat, count in cat_counts.items():
                             percentage = (count / len(cluster_jobs)) * 100
@@ -978,7 +1134,7 @@ st.markdown("---")
 # SECCIÓN 8: RECOMENDACIONES Y PLAN DE ACCIÓN
 # ============================================================
 
-st.header(" Ejemplo practicos de aplicaciones de este cluster")
+st.header(" Ejemplo prácticos de aplicaciones de este cluster")
 
 col_rec1, col_rec2 = st.columns(2)
 
@@ -1010,7 +1166,7 @@ with col_rec1:
 with col_rec2:
     st.subheader("Para Negociación Salarial")
     
-    if len(stability_df) > 0:
+    if 'stability_df' in locals() and len(stability_df) > 0:
         # Encontrar el mejor balance salario/estabilidad
         stability_df['score'] = (
             stability_df['salario_promedio'] / stability_df['salario_promedio'].max() * 0.6 +
@@ -1038,6 +1194,13 @@ with col_rec2:
 # Plan de mejora continua
 st.subheader(" Posibles rutas en base a los resultados ")
 col_plan1, col_plan2, col_plan3 = st.columns(3)
+
+with col_plan1:
+    st.markdown("""
+    **Inmediato:**
+    1. Validar categorías únicas
+    2. Ajustar filtros por experiencia
+    """)
 
 with col_plan2:
     st.markdown("""
@@ -1138,28 +1301,32 @@ st.markdown(f"""
 • Cluster mejor pagado: {cluster_filtered.iloc[0].name} ({currency_symbol}{cluster_filtered.iloc[0]['salario_promedio']:,.0f})
 • Total empleos en clusters mostrados: {cluster_filtered['n_empleos'].sum()}
 
+**Categorías Únicas Asignadas:**
+{len(cluster_filtered['categoria_principal'].unique())} de {len(cluster_filtered)} clusters tienen categorías únicas
+
 **Limitaciones y Consideraciones:**
 1. Basado en {len(df_active)} muestras totales
 2. Validar con datos adicionales para decisiones críticas
 3. Considerar factores adicionales: experiencia, educación, ubicación
 4. Actualizar análisis periódicamente con nuevos datos
+5. Categorías únicas asignadas automáticamente para evitar repeticiones
 """)
 
 # Información sobre archivos generados
 with st.expander(" Archivos Disponibles para Descarga"):
     st.write("""
     **Archivos CSV disponibles en el sistema:**
-    1. **analisis_completo_crc.csv** - Dataset completo con análisis CRC
+    1. **empleos_analisis_final.csv** - Dataset completo USD
     2. **resultados_finales_clusters_crc.csv** - Clusters finales CRC
-    3. **empleos_clusterizados_refinados_crc.csv** - Clusters refinados
-    4. **resumen_clusters_crc.csv** - Resumen estadístico
-    
-    **Archivos de reporte:**
-    1. **REPORTE_FINAL_CLUSTERS_CRC.txt** - Reporte ejecutivo completo
-    2. **PLAN_ACCION_CLUSTERS_CRC.txt** - Plan de acción detallado
+    3. **resumen_clusters_crc.csv** - Resumen estadístico
     
     **Visualizaciones generadas:**
     1. **analisis_final_clusters_crc.png** - Gráficos finales
     2. **piramide_salarial_profesional.png** - Pirámide salarial
     3. **clustering_mejorado_crc.png** - Clustering mejorado
+    
+    **Nueva característica:**
+    • Asignación automática de categorías únicas por cluster
+    • Detección de categorías duplicadas
+    • Visualización mejorada de relaciones salario-estabilidad
     """)
