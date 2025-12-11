@@ -1,3 +1,4 @@
+
 # ============================================================
 # DASHBOARD DE ANÁLISIS DE CLUSTERS SALARIALES
 # ============================================================
@@ -7,6 +8,10 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
+import matplotlib.pyplot as plt
+from matplotlib.patches import Patch
+from matplotlib.lines import Line2D
+import seaborn as sns
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -16,247 +21,10 @@ warnings.filterwarnings('ignore')
 
 st.set_page_config(
     page_title="Dashboard - Análisis de Clusters Salariales",
+    page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded"
 )
-
-# ============================================================
-# ESTILOS CSS GLOBALES - TEMA OSCURO OPTIMIZADO
-# ============================================================
-
-st.markdown("""
-<style>
-    /* 1. MANTENER TEMA OSCURO PERO CON CONTRASTE MEJORADO */
-    .stApp {
-        background-color: #0e1117 !important;
-        color: #f0f2f6 !important;
-    }
-    
-    /* 2. ENCABEZADOS EN TEMA OSCURO */
-    h1, h2, h3, h4, h5, h6 {
-        color: #ffffff !important;
-        text-shadow: 0 1px 2px rgba(0,0,0,0.3) !important;
-    }
-    
-    h1 {
-        font-size: 2rem !important;
-        border-bottom: 3px solid #3498db !important;
-        padding-bottom: 10px !important;
-        color: #ffffff !important;
-    }
-    
-    h2 {
-        font-size: 1.5rem !important;
-        border-bottom: 2px solid #2ecc71 !important;
-        padding-bottom: 8px !important;
-        margin-top: 1.5rem !important;
-        color: #ffffff !important;
-    }
-    
-    h3 {
-        color: #f0f2f6 !important;
-    }
-    
-    /* 3. MÉTRICAS - VISIBLES EN TEMA OSCURO */
-    div[data-testid="stMetric"] {
-        background: linear-gradient(135deg, #1e1e1e 0%, #2d2d2d 100%) !important;
-        border: 1px solid #444 !important;
-        border-radius: 10px !important;
-        padding: 20px !important;
-        margin: 10px 0 !important;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
-    }
-    
-    div[data-testid="stMetricLabel"] {
-        color: #b0b0b0 !important;
-        font-weight: 600 !important;
-        font-size: 14px !important;
-        text-shadow: none !important;
-    }
-    
-    div[data-testid="stMetricValue"] {
-        color: #2ecc71 !important;
-        font-size: 26px !important;
-        font-weight: 700 !important;
-        text-shadow: 0 1px 2px rgba(0,0,0,0.5) !important;
-    }
-    
-    div[data-testid="stMetricDelta"] {
-        color: #95a5a6 !important;
-        font-size: 13px !important;
-        font-weight: 500 !important;
-        text-shadow: none !important;
-    }
-    
-    /* 4. TEXTO GENERAL EN TEMA OSCURO */
-    p, span, div, label {
-        color: #e0e0e0 !important;
-    }
-    
-    /* 5. TABLAS EN TEMA OSCURO */
-    .stDataFrame {
-        background-color: #1e1e1e !important;
-        border: 1px solid #444 !important;
-        border-radius: 8px !important;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.2) !important;
-    }
-    
-    table {
-        color: #e0e0e0 !important;
-    }
-    
-    th {
-        background-color: #2d2d2d !important;
-        color: #ffffff !important;
-        border-color: #444 !important;
-    }
-    
-    td {
-        background-color: #1e1e1e !important;
-        color: #d0d0d0 !important;
-        border-color: #444 !important;
-    }
-    
-    /* 6. BOTONES EN TEMA OSCURO */
-    .stButton > button {
-        background-color: #3498db !important;
-        color: white !important;
-        border: none !important;
-        border-radius: 6px !important;
-        font-weight: 600 !important;
-        padding: 10px 20px !important;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.3) !important;
-    }
-    
-    .stButton > button:hover {
-        background-color: #2980b9 !important;
-        transform: translateY(-2px) !important;
-        transition: all 0.3s ease !important;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.4) !important;
-    }
-    
-    /* 7. WIDGETS EN TEMA OSCURO */
-    .stSelectbox, .stSlider, .stNumberInput {
-        background-color: #1e1e1e !important;
-        color: #ffffff !important;
-        border: 1px solid #555 !important;
-        border-radius: 6px !important;
-    }
-    
-    .stSelectbox > div > div {
-        background-color: #2d2d2d !important;
-        color: #ffffff !important;
-    }
-    
-    /* 8. SIDEBAR EN TEMA OSCURO */
-    [data-testid="stSidebar"] {
-        background-color: #1a1d23 !important;
-        border-right: 1px solid #333 !important;
-    }
-    
-    [data-testid="stSidebar"] * {
-        color: #e0e0e0 !important;
-    }
-    
-    /* 9. SEPARADORES */
-    hr {
-        border-color: #444 !important;
-        margin: 2rem 0 !important;
-    }
-    
-    /* 10. INFO BOXES EN TEMA OSCURO */
-    .stAlert {
-        background-color: #1e3a5f !important;
-        border-left: 4px solid #3498db !important;
-        border-radius: 6px !important;
-        padding: 15px !important;
-        color: #e0f2ff !important;
-    }
-    
-    /* 11. GRÁFICOS PLOTLY EN TEMA OSCURO */
-    .js-plotly-plot, .plotly, .main-svg {
-        background-color: #1e1e1e !important;
-        border-radius: 8px !important;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.3) !important;
-    }
-    
-    /* 12. TARJETAS PERSONALIZADAS PARA MÉTRICAS CRÍTICAS */
-    .custom-metric-card {
-        background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%) !important;
-        border: 1px solid #4a6278 !important;
-        border-radius: 10px !important;
-        padding: 20px !important;
-        margin: 12px 0 !important;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.4) !important;
-    }
-    
-    .custom-metric-title {
-        color: #bdc3c7 !important;
-        font-size: 14px !important;
-        font-weight: 600 !important;
-        margin-bottom: 8px !important;
-    }
-    
-    .custom-metric-value {
-        color: #2ecc71 !important;
-        font-size: 28px !important;
-        font-weight: 700 !important;
-        margin: 5px 0 !important;
-    }
-    
-    .custom-metric-delta {
-        color: #95a5a6 !important;
-        font-size: 14px !important;
-        font-weight: 500 !important;
-    }
-    
-    /* 13. SCROLLBAR ESTILIZADO */
-    ::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
-    }
-    
-    ::-webkit-scrollbar-track {
-        background: #1e1e1e;
-    }
-    
-    ::-webkit-scrollbar-thumb {
-        background: #444;
-        border-radius: 4px;
-    }
-    
-    ::-webkit-scrollbar-thumb:hover {
-        background: #555;
-    }
-    
-    /* 14. TEXTO DE GRÁFICOS PLOTLY */
-    .gtitle, .xtitle, .ytitle, .legendtext {
-        fill: #ffffff !important;
-        color: #ffffff !important;
-    }
-</style>
-""", unsafe_allow_html=True)
-
-# ============================================================
-# FUNCIÓN PARA MÉTRICAS PERSONALIZADAS EN TEMA OSCURO
-# ============================================================
-
-def mostrar_metrica_oscura(titulo, valor, delta=None):
-    """Función para mostrar métricas con HTML personalizado para tema oscuro"""
-    html = f"""
-    <div class="custom-metric-card">
-        <div class="custom-metric-title">{titulo}</div>
-        <div class="custom-metric-value">{valor}</div>
-    """
-    
-    if delta:
-        html += f"""
-        <div class="custom-metric-delta">{delta}</div>
-        """
-    
-    html += "</div>"
-    
-    return html
 
 # ============================================================
 # FUNCIONES DE CARGA Y PREPARACIÓN DE DATOS
@@ -287,7 +55,7 @@ def load_data():
 # ============================================================
 
 # Título principal
-st.title(" Dashboard de Análisis de Clusters Salariales")
+st.title("📊 Dashboard de Análisis de Clusters Salariales")
 st.markdown("---")
 
 # Cargar datos
@@ -333,23 +101,24 @@ with st.sidebar:
     
     # Opciones de visualización
     st.subheader("Opciones de Visualización")
+    show_detailed_labels = st.checkbox("Mostrar etiquetas detalladas", value=True)
     color_scheme = st.selectbox(
         "Esquema de colores:",
-        options=["viridis", "plasma", "inferno", "magma", "cividis", "dark24"]
+        options=["viridis", "plasma", "inferno", "magma", "cividis", "Set3"]
     )
     
     st.markdown("---")
     
-    # Métricas rápidas en sidebar - USANDO HTML PERSONALIZADO
+    # Métricas rápidas en sidebar
     st.subheader("Métricas Clave")
     col1, col2 = st.columns(2)
     with col1:
-        st.markdown(mostrar_metrica_oscura("Total Empleos", f"{len(df):,}"), unsafe_allow_html=True)
+        st.metric("Total Empleos", len(df))
     with col2:
-        st.markdown(mostrar_metrica_oscura("Clusters", len(cluster_summary)), unsafe_allow_html=True)
+        st.metric("Clusters", len(cluster_summary))
     
-    st.markdown(mostrar_metrica_oscura("Salario Promedio", f"${df['salario_limpio'].mean():,.0f}"), unsafe_allow_html=True)
-    st.markdown(mostrar_metrica_oscura("Salario Máximo", f"${df['salario_limpio'].max():,.0f}"), unsafe_allow_html=True)
+    st.metric("Salario Promedio", f"${df['salario_limpio'].mean():,.0f}")
+    st.metric("Salario Máximo", f"${df['salario_limpio'].max():,.0f}")
 
 # ============================================================
 # FILTRAR DATOS SEGÚN SELECCIONES
@@ -369,28 +138,35 @@ cluster_summary_filtered = cluster_summary[cluster_summary.index.isin(selected_c
 
 st.header("Resumen Ejecutivo")
 
-# Crear columnas para métricas - USANDO HTML PERSONALIZADO
+# Crear columnas para métricas
 col1, col2, col3, col4 = st.columns(4)
 
 with col1:
     avg_salary = df_filtered['salario_limpio'].mean()
-    delta_text = f"${avg_salary - df['salario_limpio'].mean():,.0f}" if len(selected_clusters) < len(all_clusters) else None
-    st.markdown(mostrar_metrica_oscura("Salario Promedio", f"${avg_salary:,.0f}", delta_text), unsafe_allow_html=True)
+    st.metric(
+        label="Salario Promedio",
+        value=f"${avg_salary:,.0f}",
+        delta=f"${avg_salary - df['salario_limpio'].mean():,.0f}" if len(selected_clusters) < len(all_clusters) else None
+    )
 
 with col2:
-    st.markdown(mostrar_metrica_oscura("Empleos Analizados", f"{len(df_filtered):,}"), unsafe_allow_html=True)
+    st.metric("Empleos Analizados", len(df_filtered))
 
 with col3:
     top_cluster = cluster_summary_filtered.iloc[0]
-    st.markdown(mostrar_metrica_oscura("Cluster Mejor Pagado", 
-                                     top_cluster.name.replace('Cluster_', ''),
-                                     f"${top_cluster['salario_promedio']:,.0f}"), unsafe_allow_html=True)
+    st.metric(
+        label="Cluster Mejor Pagado",
+        value=top_cluster.name.replace('Cluster_', ''),
+        delta=f"${top_cluster['salario_promedio']:,.0f}"
+    )
 
 with col4:
     best_value_cluster = cluster_summary_filtered.iloc[1] if len(cluster_summary_filtered) > 1 else cluster_summary_filtered.iloc[0]
-    st.markdown(mostrar_metrica_oscura("Mejor Valor", 
-                                     best_value_cluster.name.replace('Cluster_', ''),
-                                     f"{best_value_cluster['n_empleos']} empleos"), unsafe_allow_html=True)
+    st.metric(
+        label="Mejor Valor",
+        value=best_value_cluster.name.replace('Cluster_', ''),
+        delta=f"{best_value_cluster['n_empleos']} empleos"
+    )
 
 st.markdown("---")
 
@@ -409,21 +185,17 @@ with col1:
     counts = cluster_summary_filtered.loc[clusters_ordered]['n_empleos'].values
     categorias = cluster_summary_filtered.loc[clusters_ordered]['categoria_principal'].values
     
-    # Crear gráfico de barras horizontales con Plotly - TEMA OSCURO
+    # Crear gráfico de barras horizontales con Plotly
     fig_pyramid = go.Figure()
-    
-    # Usar colores que contrasten bien en tema oscuro
-    colors_dark = px.colors.sequential.Viridis_r[:len(clusters_ordered)]
     
     # Añadir barras
     fig_pyramid.add_trace(go.Bar(
         y=[c.replace('Cluster_', '') for c in clusters_ordered],
         x=salarios_avg,
         orientation='h',
-        marker_color=colors_dark,
+        marker_color=px.colors.sequential.Viridis_r[:len(clusters_ordered)],
         text=[f"${s:,.0f}" for s in salarios_avg],
         textposition='outside',
-        textfont=dict(color='white', size=12),
         name='Salario Promedio',
         hovertemplate='<b>%{y}</b><br>' +
                      'Salario: $%{x:,.0f}<br>' +
@@ -437,51 +209,33 @@ with col1:
     fig_pyramid.add_vline(
         x=promedio_general,
         line_dash="dash",
-        line_color="#ff6b6b",
+        line_color="red",
         annotation_text=f"Promedio General: ${promedio_general:,.0f}",
-        annotation_position="top right",
-        annotation_font=dict(color='white')
+        annotation_position="top right"
     )
     
-    # Configurar layout para tema oscuro
+    # Configurar layout
     fig_pyramid.update_layout(
         height=500,
         title="Distribución Salarial por Cluster",
-        title_font=dict(color='white', size=18),
         xaxis_title="Salario Promedio Mensual (USD)",
         yaxis_title="Cluster",
         showlegend=False,
-        margin=dict(l=0, r=0, t=40, b=0),
-        paper_bgcolor='rgba(30,30,30,1)',
-        plot_bgcolor='rgba(30,30,30,1)',
-        font=dict(color='white'),
-        xaxis=dict(
-            gridcolor='rgba(100,100,100,0.3)',
-            linecolor='rgba(100,100,100,0.5)',
-            tickfont=dict(color='white')
-        ),
-        yaxis=dict(
-            gridcolor='rgba(100,100,100,0.3)',
-            linecolor='rgba(100,100,100,0.5)',
-            tickfont=dict(color='white')
-        )
+        margin=dict(l=0, r=0, t=40, b=0)
     )
     
     st.plotly_chart(fig_pyramid, use_container_width=True)
 
 with col2:
-    # Gráfico de donut para distribución - TEMA OSCURO
+    # Gráfico de donut para distribución
     fig_donut = go.Figure()
-    
-    colors_dark_donut = px.colors.sequential.Viridis[:len(cluster_summary_filtered)]
     
     fig_donut.add_trace(go.Pie(
         labels=[c.replace('Cluster_', '') for c in cluster_summary_filtered.index],
         values=cluster_summary_filtered['n_empleos'],
         hole=0.4,
-        marker_colors=colors_dark_donut,
+        marker_colors=px.colors.sequential.Viridis[:len(cluster_summary_filtered)],
         textinfo='percent+label',
-        textfont=dict(color='white'),
         hoverinfo='label+value+percent',
         hovertemplate='<b>%{label}</b><br>' +
                      'Empleos: %{value}<br>' +
@@ -491,16 +245,13 @@ with col2:
     fig_donut.update_layout(
         height=400,
         title="Distribución de Empleos",
-        title_font=dict(color='white', size=16),
         showlegend=False,
-        margin=dict(t=40, b=0, l=0, r=0),
-        paper_bgcolor='rgba(30,30,30,1)',
-        font=dict(color='white')
+        margin=dict(t=40, b=0, l=0, r=0)
     )
     
     st.plotly_chart(fig_donut, use_container_width=True)
     
-    # Mostrar tabla resumen con estilos oscuros
+    # Mostrar tabla resumen
     st.subheader("Resumen por Cluster")
     summary_table = cluster_summary_filtered.copy()
     summary_table.index = [c.replace('Cluster_', '') for c in summary_table.index]
@@ -538,7 +289,7 @@ for cluster, row in cluster_summary_filtered.iterrows():
 
 stability_df = pd.DataFrame(stability_data)
 
-# Crear gráfico de burbujas - TEMA OSCURO
+# Crear gráfico de burbujas
 fig_bubbles = px.scatter(
     stability_df,
     x='salario_promedio',
@@ -548,7 +299,7 @@ fig_bubbles = px.scatter(
     hover_name='cluster',
     hover_data=['categoria', 'rango_salarial'],
     size_max=60,
-    color_discrete_sequence=px.colors.qualitative.Dark24[:len(stability_df)],
+    color_discrete_sequence=px.colors.qualitative.Set3[:len(stability_df)],
     title="Relación Salario-Estabilidad por Cluster"
 )
 
@@ -556,80 +307,59 @@ fig_bubbles = px.scatter(
 fig_bubbles.add_vline(
     x=promedio_general,
     line_dash="dash",
-    line_color="#ff6b6b",
-    opacity=0.7,
-    annotation_text="Promedio General",
-    annotation_font=dict(color='white')
+    line_color="gray",
+    opacity=0.5,
+    annotation_text="Promedio General"
 )
 
 fig_bubbles.add_hline(
     y=50,
     line_dash="dash",
-    line_color="#4ECDC4",
-    opacity=0.7,
-    annotation_text="Límite Estabilidad",
-    annotation_font=dict(color='white')
+    line_color="gray",
+    opacity=0.5,
+    annotation_text="Límite Estabilidad"
 )
 
-# Mejorar layout para tema oscuro
+# Mejorar layout
 fig_bubbles.update_layout(
     height=600,
     xaxis_title="Salario Promedio (USD)",
     yaxis_title="Índice de Estabilidad (0-100)",
     hovermode='closest',
-    showlegend=True,
-    paper_bgcolor='rgba(30,30,30,1)',
-    plot_bgcolor='rgba(30,30,30,1)',
-    font=dict(color='white'),
-    title_font=dict(color='white', size=18),
-    xaxis=dict(
-        gridcolor='rgba(100,100,100,0.3)',
-        linecolor='rgba(100,100,100,0.5)',
-        tickfont=dict(color='white')
-    ),
-    yaxis=dict(
-        gridcolor='rgba(100,100,100,0.3)',
-        linecolor='rgba(100,100,100,0.5)',
-        tickfont=dict(color='white')
-    ),
-    legend=dict(
-        font=dict(color='white'),
-        bgcolor='rgba(30,30,30,0.8)',
-        bordercolor='rgba(100,100,100,0.5)'
-    )
+    showlegend=True
 )
 
 # Añadir etiquetas mejoradas
 fig_bubbles.update_traces(
     textposition='top center',
-    marker=dict(line=dict(width=2, color='white')),
+    marker=dict(line=dict(width=2, color='DarkSlateGrey')),
     selector=dict(mode='markers')
 )
 
 st.plotly_chart(fig_bubbles, use_container_width=True)
 
-# Análisis de estabilidad - USANDO HTML PERSONALIZADO
+# Análisis de estabilidad
 col1, col2 = st.columns(2)
 
 with col1:
     st.subheader("Clusters más Estables")
     stable_clusters = stability_df.nlargest(3, 'estabilidad')
     for _, row in stable_clusters.iterrows():
-        st.markdown(mostrar_metrica_oscura(
-            row['cluster'], 
-            f"{row['estabilidad']:.1f} puntos",
-            f"${row['salario_promedio']:,.0f}"
-        ), unsafe_allow_html=True)
+        st.metric(
+            label=row['cluster'],
+            value=f"{row['estabilidad']:.1f} puntos",
+            delta=f"${row['salario_promedio']:,.0f}"
+        )
 
 with col2:
     st.subheader("Clusters con Mayor Salario")
     high_salary_clusters = stability_df.nlargest(3, 'salario_promedio')
     for _, row in high_salary_clusters.iterrows():
-        st.markdown(mostrar_metrica_oscura(
-            row['cluster'], 
-            f"${row['salario_promedio']:,.0f}",
-            f"{row['estabilidad']:.1f} estabilidad"
-        ), unsafe_allow_html=True)
+        st.metric(
+            label=row['cluster'],
+            value=f"${row['salario_promedio']:,.0f}",
+            delta=f"{row['estabilidad']:.1f} estabilidad"
+        )
 
 st.markdown("---")
 
@@ -661,7 +391,7 @@ trayectorias = {
     }
 }
 
-# Crear gráfico de líneas - TEMA OSCURO
+# Crear gráfico de líneas
 fig_trayectorias = go.Figure()
 
 # Añadir cada trayectoria
@@ -672,10 +402,9 @@ for nombre, datos in trayectorias.items():
         mode='lines+markers+text',
         name=nombre,
         line=dict(color=datos['color'], width=3),
-        marker=dict(size=12, line=dict(width=2, color='white')),
+        marker=dict(size=12),
         text=[f"${s:,.0f}" for s in datos['salarios']],
         textposition="top center",
-        textfont=dict(color='white'),
         hoverinfo='text+name',
         hovertext=[f"{etapa}<br>Salario: ${salario:,.0f}<br>Cluster: {cluster}" 
                   for etapa, salario, cluster in zip(datos['etapas'], datos['salarios'], datos['clusters'])]
@@ -684,75 +413,56 @@ for nombre, datos in trayectorias.items():
 # Añadir áreas sombreadas para niveles
 fig_trayectorias.add_hrect(
     y0=0, y1=3000,
-    fillcolor="rgba(46, 204, 113, 0.2)",
+    fillcolor="green", opacity=0.1,
     layer="below", line_width=0,
-    annotation_text="Entry Level",
-    annotation_font=dict(color='white')
+    annotation_text="Entry Level"
 )
 
 fig_trayectorias.add_hrect(
     y0=3000, y1=7000,
-    fillcolor="rgba(241, 196, 15, 0.2)",
+    fillcolor="orange", opacity=0.1,
     layer="below", line_width=0,
-    annotation_text="Mid Level",
-    annotation_font=dict(color='white')
+    annotation_text="Mid Level"
 )
 
 fig_trayectorias.add_hrect(
     y0=7000, y1=12000,
-    fillcolor="rgba(231, 76, 60, 0.2)",
+    fillcolor="red", opacity=0.1,
     layer="below", line_width=0,
-    annotation_text="Senior/Executive",
-    annotation_font=dict(color='white')
+    annotation_text="Senior/Executive"
 )
 
-# Configurar layout para tema oscuro
+# Configurar layout
 fig_trayectorias.update_layout(
     height=500,
     title="Evolución Salarial en Trayectorias Profesionales",
-    title_font=dict(color='white', size=18),
     xaxis_title="Etapa Profesional",
     yaxis_title="Salario Mensual (USD)",
     hovermode='x unified',
     showlegend=True,
-    paper_bgcolor='rgba(30,30,30,1)',
-    plot_bgcolor='rgba(30,30,30,1)',
-    font=dict(color='white'),
-    xaxis=dict(
-        gridcolor='rgba(100,100,100,0.3)',
-        linecolor='rgba(100,100,100,0.5)',
-        tickfont=dict(color='white')
-    ),
-    yaxis=dict(
-        gridcolor='rgba(100,100,100,0.3)',
-        linecolor='rgba(100,100,100,0.5)',
-        tickfont=dict(color='white')
-    ),
     legend=dict(
         orientation="h",
         yanchor="bottom",
         y=1.02,
         xanchor="right",
-        x=1,
-        font=dict(color='white'),
-        bgcolor='rgba(30,30,30,0.8)'
+        x=1
     )
 )
 
 st.plotly_chart(fig_trayectorias, use_container_width=True)
 
-# Mostrar estadísticas de crecimiento - USANDO HTML PERSONALIZADO
+# Mostrar estadísticas de crecimiento
 st.subheader("Crecimiento Salarial por Trayectoria")
 cols = st.columns(len(trayectorias))
 
 for idx, (nombre, datos) in enumerate(trayectorias.items()):
     with cols[idx]:
         crecimiento = ((datos['salarios'][-1] - datos['salarios'][0]) / datos['salarios'][0]) * 100
-        st.markdown(mostrar_metrica_oscura(
-            nombre,
-            f"+{crecimiento:.0f}%",
-            f"De ${datos['salarios'][0]:,.0f} a ${datos['salarios'][-1]:,.0f}"
-        ), unsafe_allow_html=True)
+        st.metric(
+            label=nombre,
+            value=f"+{crecimiento:.0f}%",
+            delta=f"De ${datos['salarios'][0]:,.0f} a ${datos['salarios'][-1]:,.0f}"
+        )
 
 st.markdown("---")
 
@@ -774,7 +484,7 @@ for cluster in cluster_summary_filtered.index:
         row.append(count)
     heatmap_data.append(row)
 
-# Crear heatmap - TEMA OSCURO
+# Crear heatmap
 fig_heatmap = go.Figure(data=go.Heatmap(
     z=heatmap_data,
     x=top_categories,
@@ -783,7 +493,7 @@ fig_heatmap = go.Figure(data=go.Heatmap(
     hoverongaps=False,
     text=heatmap_data,
     texttemplate='%{text}',
-    textfont={"size": 10, "color": "white"},
+    textfont={"size": 10},
     hovertemplate='<b>Cluster: %{y}</b><br>' +
                  '<b>Categoría: %{x}</b><br>' +
                  'Empleos: %{z}<extra></extra>'
@@ -792,19 +502,9 @@ fig_heatmap = go.Figure(data=go.Heatmap(
 fig_heatmap.update_layout(
     height=500,
     title="Concentración de Categorías por Cluster",
-    title_font=dict(color='white', size=18),
     xaxis_title="Categorías Laborales",
     yaxis_title="Clusters",
-    xaxis_tickangle=-45,
-    paper_bgcolor='rgba(30,30,30,1)',
-    plot_bgcolor='rgba(30,30,30,1)',
-    font=dict(color='white'),
-    xaxis=dict(
-        tickfont=dict(color='white')
-    ),
-    yaxis=dict(
-        tickfont=dict(color='white')
-    )
+    xaxis_tickangle=-45
 )
 
 st.plotly_chart(fig_heatmap, use_container_width=True)
@@ -819,6 +519,10 @@ for cluster, row in cluster_summary_filtered.iterrows():
         st.write(f"{row['categoria_principal']} (${row['salario_promedio']:,.0f} promedio)")
 
 st.markdown("---")
+
+# ============================================================
+# SECCIÓN 6: PERFIL DE CLUSTERS TOP
+# ============================================================
 
 # ============================================================
 # SECCIÓN 6: PERFIL DE CLUSTERS - SOLO MÉTRICAS
@@ -890,22 +594,22 @@ with col2:
     ranking_df = metrics_df.sort_values('Salario Promedio', ascending=False)
     
     for i, row in ranking_df.iterrows():
-        st.markdown(mostrar_metrica_oscura(
-            row['Cluster'],
-            f"${row['Salario Promedio']:,.0f}",
-            f"{row['Empleos']} empleos"
-        ), unsafe_allow_html=True)
+        st.metric(
+            label=f"{row['Cluster']}",
+            value=f"${row['Salario Promedio']:,.0f}",
+            delta=f"{row['Empleos']} empleos"
+        )
 
 with col3:
     st.subheader("Mejor Estabilidad")
     estabilidad_df = metrics_df.sort_values('Estabilidad (%)', ascending=False)
     
     for i, row in estabilidad_df.head(3).iterrows():
-        st.markdown(mostrar_metrica_oscura(
-            row['Cluster'],
-            f"{row['Estabilidad (%)']:.1f}%",
-            f"${row['Salario Promedio']:,.0f}"
-        ), unsafe_allow_html=True)
+        st.metric(
+            label=f"{row['Cluster']}",
+            value=f"{row['Estabilidad (%)']:.1f}%",
+            delta=f"${row['Salario Promedio']:,.0f}"
+        )
 
 st.markdown("---")
 
@@ -915,42 +619,30 @@ st.subheader("Comparativa Visual de Métricas")
 col_chart1, col_chart2 = st.columns(2)
 
 with col_chart1:
-    # Gráfico de barras para salarios - TEMA OSCURO
+    # Gráfico de barras para salarios
     fig_salarios = px.bar(
         metrics_df,
         x='Cluster',
         y='Salario Promedio',
         title='Salario Promedio por Cluster',
         color='Cluster',
-        color_discrete_sequence=px.colors.qualitative.Dark24[:len(metrics_df)],
+        color_discrete_sequence=px.colors.qualitative.Set3[:len(metrics_df)],
         text_auto='.0f'
     )
     fig_salarios.update_traces(
         texttemplate='$%{text:,.0f}',
-        textposition='outside',
-        textfont=dict(color='white')
+        textposition='outside'
     )
     fig_salarios.update_layout(
         height=400,
         showlegend=False,
         yaxis_title="Salario (USD)",
-        xaxis_title="",
-        paper_bgcolor='rgba(30,30,30,1)',
-        plot_bgcolor='rgba(30,30,30,1)',
-        font=dict(color='white'),
-        title_font=dict(color='white', size=16),
-        xaxis=dict(
-            tickfont=dict(color='white')
-        ),
-        yaxis=dict(
-            gridcolor='rgba(100,100,100,0.3)',
-            tickfont=dict(color='white')
-        )
+        xaxis_title=""
     )
     st.plotly_chart(fig_salarios, use_container_width=True)
 
 with col_chart2:
-    # Gráfico de burbujas simplificado - TEMA OSCURO
+    # Gráfico de burbujas simplificado
     fig_burbujas = px.scatter(
         metrics_df,
         x='Salario Promedio',
@@ -960,28 +652,13 @@ with col_chart2:
         hover_name='Cluster',
         hover_data=['Categoría Principal', 'Diversidad (%)'],
         title='Relación Salario-Estabilidad',
-        color_discrete_sequence=px.colors.qualitative.Dark24[:len(metrics_df)],
+        color_discrete_sequence=px.colors.qualitative.Set3[:len(metrics_df)],
         size_max=50
     )
     fig_burbujas.update_layout(
         height=400,
         xaxis_title="Salario Promedio (USD)",
-        yaxis_title="Estabilidad (%)",
-        paper_bgcolor='rgba(30,30,30,1)',
-        plot_bgcolor='rgba(30,30,30,1)',
-        font=dict(color='white'),
-        title_font=dict(color='white', size=16),
-        xaxis=dict(
-            gridcolor='rgba(100,100,100,0.3)',
-            tickfont=dict(color='white')
-        ),
-        yaxis=dict(
-            gridcolor='rgba(100,100,100,0.3)',
-            tickfont=dict(color='white')
-        ),
-        legend=dict(
-            font=dict(color='white')
-        )
+        yaxis_title="Estabilidad (%)"
     )
     st.plotly_chart(fig_burbujas, use_container_width=True)
 
@@ -1002,16 +679,16 @@ if selected_cluster:
     col_detail1, col_detail2, col_detail3, col_detail4 = st.columns(4)
     
     with col_detail1:
-        st.markdown(mostrar_metrica_oscura("Salario Promedio", f"${cluster_data['Salario Promedio']:,.0f}"), unsafe_allow_html=True)
+        st.metric("Salario Promedio", f"${cluster_data['Salario Promedio']:,.0f}")
     
     with col_detail2:
-        st.markdown(mostrar_metrica_oscura("Total Empleos", str(cluster_data['Empleos'])), unsafe_allow_html=True)
+        st.metric("Total Empleos", cluster_data['Empleos'])
     
     with col_detail3:
-        st.markdown(mostrar_metrica_oscura("Estabilidad", f"{cluster_data['Estabilidad (%)']:.1f}%"), unsafe_allow_html=True)
+        st.metric("Estabilidad", f"{cluster_data['Estabilidad (%)']:.1f}%")
     
     with col_detail4:
-        st.markdown(mostrar_metrica_oscura("Diversidad", f"{cluster_data['Diversidad (%)']:.1f}%"), unsafe_allow_html=True)
+        st.metric("Diversidad", f"{cluster_data['Diversidad (%)']:.1f}%")
     
     st.markdown("---")
     
@@ -1028,16 +705,9 @@ if selected_cluster:
                 values=categorias_dist.values,
                 names=categorias_dist.index,
                 title=f'Top Categorías en {selected_cluster}',
-                hole=0.3,
-                color_discrete_sequence=px.colors.qualitative.Dark24[:len(categorias_dist)]
+                hole=0.3
             )
-            fig_categorias.update_layout(
-                height=400,
-                paper_bgcolor='rgba(30,30,30,1)',
-                font=dict(color='white'),
-                title_font=dict(color='white', size=16),
-                legend=dict(font=dict(color='white'))
-            )
+            fig_categorias.update_layout(height=400)
             st.plotly_chart(fig_categorias, use_container_width=True)
         
         with col_cat2:
@@ -1107,7 +777,7 @@ st.subheader("Exportar Análisis")
 
 csv_metrics = metrics_df.to_csv(index=False).encode('utf-8')
 st.download_button(
-    label="Descargar Métricas de Clusters",
+    label="📥 Descargar Métricas de Clusters",
     data=csv_metrics,
     file_name=f"metricas_clusters_top{top_n}.csv",
     mime="text/csv",
@@ -1127,7 +797,7 @@ with col_exp1:
     # Exportar datos completos
     csv_completo = df_filtered.to_csv(index=False).encode('utf-8')
     st.download_button(
-        label="Descargar Datos Completos",
+        label="📥 Descargar Datos Completos",
         data=csv_completo,
         file_name="datos_analisis_clusters.csv",
         mime="text/csv",
@@ -1140,7 +810,7 @@ with col_exp2:
     resumen_export.index = [c.replace('Cluster_', '') for c in resumen_export.index]
     csv_resumen = resumen_export.to_csv(index=True).encode('utf-8')
     st.download_button(
-        label="Descargar Resumen por Cluster",
+        label="📊 Descargar Resumen por Cluster",
         data=csv_resumen,
         file_name="resumen_clusters.csv",
         mime="text/csv",
@@ -1165,7 +835,7 @@ with col_exp3:
     
     csv_trayectorias = trayectorias_df.to_csv(index=False).encode('utf-8')
     st.download_button(
-        label=" Descargar Trayectorias",
+        label="🛤️ Descargar Trayectorias",
         data=csv_trayectorias,
         file_name="trayectorias_profesionales.csv",
         mime="text/csv",
@@ -1189,3 +859,31 @@ st.markdown("""
 2. Explore las trayectorias profesionales para planificar su desarrollo
 3. Consulte el perfil de clusters para identificar oportunidades alineadas con su perfil
 """)
+
+# ============================================================
+# ESTILOS CSS ADICIONALES
+# ============================================================
+
+st.markdown("""
+<style>
+    .stMetric {
+        background-color: #f0f2f6;
+        padding: 10px;
+        border-radius: 10px;
+        border-left: 4px solid #4ECDC4;
+    }
+    
+    .stPlotlyChart {
+        border-radius: 10px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    h1, h2, h3 {
+        color: #2c3e50;
+    }
+    
+    .stButton button {
+        width: 100%;
+    }
+</style>
+""", unsafe_allow_html=True)
