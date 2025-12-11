@@ -523,6 +523,10 @@ st.markdown("---")
 # SECCIÓN 6: PERFIL DE CLUSTERS TOP
 # ============================================================
 
+# ============================================================
+# SECCIÓN 6: PERFIL DE CLUSTERS TOP - VERSIÓN SIMPLIFICADA
+# ============================================================
+
 st.header("Perfil Comparativo de Clusters")
 
 # Seleccionar top clusters para análisis
@@ -531,70 +535,160 @@ top_clusters = cluster_summary_filtered.head(top_n).index.tolist()
 
 # Definir métricas para radar
 metrics = ['Salario Promedio', 'Número Empleos', 'Estabilidad', 'Diversidad Categorías', 'Rango Salarial']
-n_metrics = len(metrics)
-
-# Normalizar valores
-def normalize_series(series):
-    return (series - series.min()) / (series.max() - series.min())
 
 # Preparar datos para radar
 radar_data = {}
 for cluster in top_clusters:
     cluster_df = df_filtered[df_filtered['cluster_nombre'] == cluster]
     
-    # Calcular métricas
+    # Calcular métricas básicas
     salario_prom = cluster_df['salario_limpio'].mean()
     n_empleos = len(cluster_df)
-    rango = (cluster_df['salario_limpio'].max() - cluster_df['salario_limpio'].min()) / salario_prom if salario_prom > 0 else 0
-    estabilidad = 100 - (rango * 20)
-    diversidad = cluster_df['Categora_refinada'].nunique() / len(cluster_df) if len(cluster_df) > 0 else 0
     
-    # Normalizar para radar (excepto salario que usaremos valores reales en hover)
+    # Calcular rango salarial relativo
+    if salario_prom > 0:
+        rango_salarial = (cluster_df['salario_limpio'].max() - cluster_df['salario_limpio'].min()) / salario_prom
+    else:
+        rango_salarial = 0
+    
+    # Calcular estabilidad (inversa del rango)
+    estabilidad = max(0, min(100, 100 - (rango_salarial * 20)))
+    
+    # Calcular diversidad de categorías
+    if len(cluster_df) > 0:
+        diversidad = cluster_df['Categora_refinada'].nunique() / len(cluster_df)
+    else:
+        diversidad = 0
+    
+    # Almacenar métricas (usar valores normalizados para el radar)
     radar_data[cluster] = {
-        'raw': [salario_prom, n_empleos, estabilidad, diversidad, rango],
-        'normalized': normalize_series(pd.Series([salario_prom, n_empleos, estabilidad, diversidad, rango]))
+        'salario': salario_prom,
+        'empleos': n_empleos,
+        'estabilidad': estabilidad,
+        'diversidad': diversidad * 100,  # Convertir a porcentaje
+        'rango': 100 - (rango_salarial * 30)  # Invertir para mejor visualización
     }
 
-# Crear gráfico de radar
+# Normalizar valores para el radar (0-1)
+all_values = []
+for cluster_data in radar_data.values():
+    all_values.append(list(cluster_data.values()))
+
+all_values_array = np.array(all_values)
+normalized_data = {}
+for i, cluster in enumerate(top_clusters):
+    cluster_values = all_values_array[i]
+    normalized = (cluster_values - cluster_values.min()) / (cluster_values.max() - cluster_values.min() + 1e-10)
+    normalized_data[cluster] = normalized.tolist()
+
 # Crear gráfico de radar
 fig_radar = go.Figure()
 
+# Paleta de colores profesional
+colors_fill = [
+    'rgba(255, 99, 132, 0.2)',   # Rojo suave
+    'rgba(54, 162, 235, 0.2)',   # Azul suave
+    'rgba(255, 206, 86, 0.2)',   # Amarillo suave
+    'rgba(75, 192, 192, 0.2)',   # Verde suave
+    'rgba(153, 102, 255, 0.2)'   # Púrpura suave
+]
+
+colors_line = [
+    'rgb(255, 99, 132)',    # Rojo
+    'rgb(54, 162, 235)',    # Azul
+    'rgb(255, 206, 86)',    # Amarillo
+    'rgb(75, 192, 192)',    # Verde
+    'rgb(153, 102, 255)'    # Púrpura
+]
+
 for idx, cluster in enumerate(top_clusters):
     cluster_name = cluster.replace('Cluster_', '')
-    values_normalized = radar_data[cluster]['normalized'].tolist()
-    values_normalized += values_normalized[:1]  # Cerrar el círculo
+    values = normalized_data[cluster]
+    values += values[:1]  # Cerrar el círculo
     
-    # Valores reales para hover
-    values_raw = radar_data[cluster]['raw']
-    hover_text = [
-        f"Salario: ${values_raw[0]:,.0f}",
-        f"Empleos: {int(values_raw[1])}",
-        f"Estabilidad: {values_raw[2]:.1f}",
-        f"Diversidad: {values_raw[3]:.2f}",
-        f"Rango: {values_raw[4]:.2f}"
-    ]
+    # Crear texto para hover
+    raw_data = radar_data[cluster]
+    hover_text = []
+    for i, metric in enumerate(metrics):
+        if metric == 'Salario Promedio':
+            hover_text.append(f"{metric}: ${raw_data['salario']:,.0f}")
+        elif metric == 'Número Empleos':
+            hover_text.append(f"{metric}: {int(raw_data['empleos'])}")
+        elif metric == 'Estabilidad':
+            hover_text.append(f"{metric}: {raw_data['estabilidad']:.1f}%")
+        elif metric == 'Diversidad Categorías':
+            hover_text.append(f"{metric}: {raw_data['diversidad']:.1f}%")
+        elif metric == 'Rango Salarial':
+            hover_text.append(f"{metric}: {raw_data['rango']:.1f}")
     
-    # Generar color usando una paleta de Plotly
-    color = px.colors.qualitative.Set3[idx % len(px.colors.qualitative.Set3)]
-    # Convertir color hexadecimal a rgba con transparencia
-    # Si el color es hexadecimal, lo convertimos a rgba
-    import matplotlib.colors as mcolors
-    # Convertir hex a rgb
-    rgb = mcolors.hex2color(color)  # Devuelve (r, g, b) en [0, 1]
-    rgb = [int(c * 255) for c in rgb]
-    fillcolor = f'rgba({rgb[0]}, {rgb[1]}, {rgb[2]}, 0.2)'
-    line_color = f'rgba({rgb[0]}, {rgb[1]}, {rgb[2]}, 1)'
+    hover_text += [hover_text[0]]  # Cerrar el círculo
     
     fig_radar.add_trace(go.Scatterpolar(
-        r=values_normalized,
-        theta=metrics + [metrics[0]],  # Cerrar el círculo
+        r=values,
+        theta=metrics + [metrics[0]],
         name=cluster_name,
         fill='toself',
-        fillcolor=fillcolor,
-        line=dict(color=line_color),
+        fillcolor=colors_fill[idx % len(colors_fill)],
+        line=dict(color=colors_line[idx % len(colors_line)], width=2),
         hoverinfo='text',
-        hovertext=hover_text + [hover_text[0]]  # Cerrar el círculo
+        hovertext=hover_text
     ))
+
+# Configurar layout del radar
+fig_radar.update_layout(
+    height=600,
+    polar=dict(
+        radialaxis=dict(
+            visible=True,
+            range=[0, 1],
+            showticklabels=False,
+            showline=False
+        ),
+        angularaxis=dict(
+            tickfont=dict(size=12),
+            direction='clockwise'
+        ),
+        bgcolor='rgba(240, 240, 240, 0.1)'
+    ),
+    title=dict(
+        text=f"Comparativa de Top {top_n} Clusters",
+        font=dict(size=18, family="Arial, sans-serif")
+    ),
+    showlegend=True,
+    legend=dict(
+        orientation="h",
+        yanchor="bottom",
+        y=1.02,
+        xanchor="center",
+        x=0.5,
+        font=dict(size=12)
+    ),
+    margin=dict(l=50, r=50, t=80, b=50),
+    paper_bgcolor='rgba(255, 255, 255, 0.9)',
+    plot_bgcolor='rgba(255, 255, 255, 0.9)'
+)
+
+st.plotly_chart(fig_radar, use_container_width=True)
+
+# Mostrar tabla con valores reales
+st.subheader("Valores Reales de las Métricas")
+
+# Crear tabla resumen
+summary_data = []
+for cluster in top_clusters:
+    cluster_name = cluster.replace('Cluster_', '')
+    data = radar_data[cluster]
+    summary_data.append({
+        'Cluster': cluster_name,
+        'Salario Promedio': f"${data['salario']:,.0f}",
+        'Número Empleos': data['empleos'],
+        'Estabilidad': f"{data['estabilidad']:.1f}%",
+        'Diversidad': f"{data['diversidad']:.1f}%",
+        'Rango Salarial': f"{data['rango']:.1f}"
+    })
+
+summary_df = pd.DataFrame(summary_data)
+st.dataframe(summary_df, use_container_width=True, hide_index=True)
 # ============================================================
 # SECCIÓN 7: RESUMEN Y RECOMENDACIONES
 # ============================================================
