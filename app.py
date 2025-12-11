@@ -7,10 +7,6 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
-import matplotlib.pyplot as plt
-from matplotlib.patches import Patch
-from matplotlib.lines import Line2D
-import seaborn as sns
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -24,6 +20,182 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# ============================================================
+# ESTILOS CSS GLOBALES - VERSIÓN CORREGIDA DEFINITIVA
+# ============================================================
+
+st.markdown("""
+<style>
+    /* 1. DESACTIVAR COMPLETAMENTE EL TEMA OSCURO */
+    .stApp {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+    }
+    
+    /* 2. FORZAR TEMA CLARO EN TODOS LOS ELEMENTOS */
+    * {
+        color: #000000 !important;
+    }
+    
+    /* 3. MÉTRICAS - ESTILOS ESPECÍFICOS Y VISIBLES */
+    div[data-testid="stMetric"] {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%) !important;
+        border: 2px solid #ced4da !important;
+        border-radius: 12px !important;
+        padding: 15px !important;
+        margin: 10px 0 !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
+    }
+    
+    div[data-testid="stMetricLabel"] {
+        color: #2c3e50 !important;
+        font-weight: 700 !important;
+        font-size: 14px !important;
+        text-shadow: none !important;
+    }
+    
+    div[data-testid="stMetricValue"] {
+        color: #27ae60 !important;
+        font-size: 24px !important;
+        font-weight: 800 !important;
+        text-shadow: none !important;
+    }
+    
+    div[data-testid="stMetricDelta"] {
+        color: #7f8c8d !important;
+        font-size: 13px !important;
+        font-weight: 600 !important;
+        text-shadow: none !important;
+    }
+    
+    /* 4. ENCABEZADOS VISIBLES */
+    h1, h2, h3, h4, h5, h6 {
+        color: #1a1a1a !important;
+        text-shadow: none !important;
+    }
+    
+    h1 {
+        font-size: 2rem !important;
+        border-bottom: 3px solid #3498db !important;
+        padding-bottom: 10px !important;
+    }
+    
+    h2 {
+        font-size: 1.5rem !important;
+        border-bottom: 2px solid #2ecc71 !important;
+        padding-bottom: 8px !important;
+        margin-top: 1.5rem !important;
+    }
+    
+    /* 5. TEXTO GENERAL */
+    p, span, div, label {
+        color: #333333 !important;
+    }
+    
+    /* 6. CONTENEDORES PRINCIPALES */
+    .main .block-container {
+        background-color: white !important;
+    }
+    
+    /* 7. BOTONES */
+    .stButton > button {
+        background-color: #3498db !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 6px !important;
+        font-weight: 600 !important;
+        padding: 10px 20px !important;
+    }
+    
+    .stButton > button:hover {
+        background-color: #2980b9 !important;
+        transform: translateY(-2px) !important;
+        transition: all 0.3s ease !important;
+    }
+    
+    /* 8. WIDGETS */
+    .stSelectbox, .stSlider, .stNumberInput {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+        border: 1px solid #ddd !important;
+        border-radius: 6px !important;
+    }
+    
+    /* 9. TABLAS */
+    .stDataFrame {
+        border: 1px solid #e1e4e8 !important;
+        border-radius: 8px !important;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05) !important;
+    }
+    
+    /* 10. SIDEBAR */
+    [data-testid="stSidebar"] {
+        background-color: #f8f9fa !important;
+        border-right: 1px solid #e1e4e8 !important;
+    }
+    
+    [data-testid="stSidebar"] * {
+        color: #333333 !important;
+    }
+    
+    /* 11. SEPARADORES */
+    hr {
+        border-color: #e1e4e8 !important;
+        margin: 2rem 0 !important;
+    }
+    
+    /* 12. INFO BOXES */
+    .stAlert {
+        background-color: #e8f4fd !important;
+        border-left: 4px solid #3498db !important;
+        border-radius: 6px !important;
+        padding: 15px !important;
+    }
+    
+    /* 13. MEJORAS PARA GRÁFICOS */
+    .js-plotly-plot, .plotly, .main-svg {
+        background-color: #ffffff !important;
+        border-radius: 8px !important;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05) !important;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# ============================================================
+# FUNCIÓN PARA MÉTRICAS PERSONALIZADAS (por si acaso)
+# ============================================================
+
+def mostrar_metrica_personalizada(titulo, valor, delta=None, color_valor="#27ae60"):
+    """Función alternativa para mostrar métricas con HTML personalizado"""
+    html = f"""
+    <div style="
+        background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+        border: 2px solid #ced4da;
+        border-radius: 12px;
+        padding: 20px;
+        margin: 12px 0;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    ">
+        <div style="color: #2c3e50; font-weight: 700; font-size: 15px; margin-bottom: 8px;">
+            {titulo}
+        </div>
+        <div style="color: {color_valor}; font-size: 28px; font-weight: 800; margin: 5px 0;">
+            {valor}
+        </div>
+    """
+    
+    if delta:
+        html += f"""
+        <div style="color: #7f8c8d; font-size: 15px; font-weight: 600; margin-top: 5px;">
+            {delta}
+        </div>
+        """
+    
+    html += "</div>"
+    
+    return html
 
 # ============================================================
 # FUNCIONES DE CARGA Y PREPARACIÓN DE DATOS
@@ -100,7 +272,6 @@ with st.sidebar:
     
     # Opciones de visualización
     st.subheader("Opciones de Visualización")
-    show_detailed_labels = st.checkbox("Mostrar etiquetas detalladas", value=True)
     color_scheme = st.selectbox(
         "Esquema de colores:",
         options=["viridis", "plasma", "inferno", "magma", "cividis", "Set3"]
@@ -112,7 +283,7 @@ with st.sidebar:
     st.subheader("Métricas Clave")
     col1, col2 = st.columns(2)
     with col1:
-        st.metric("Total Empleos", len(df))
+        st.metric("Total Empleos", f"{len(df):,}")
     with col2:
         st.metric("Clusters", len(cluster_summary))
     
@@ -149,7 +320,7 @@ with col1:
     )
 
 with col2:
-    st.metric("Empleos Analizados", len(df_filtered))
+    st.metric("Empleos Analizados", f"{len(df_filtered):,}")
 
 with col3:
     top_cluster = cluster_summary_filtered.iloc[0]
@@ -520,10 +691,6 @@ for cluster, row in cluster_summary_filtered.iterrows():
 st.markdown("---")
 
 # ============================================================
-# SECCIÓN 6: PERFIL DE CLUSTERS TOP
-# ============================================================
-
-# ============================================================
 # SECCIÓN 6: PERFIL DE CLUSTERS - SOLO MÉTRICAS
 # ============================================================
 
@@ -858,31 +1025,3 @@ st.markdown("""
 2. Explore las trayectorias profesionales para planificar su desarrollo
 3. Consulte el perfil de clusters para identificar oportunidades alineadas con su perfil
 """)
-
-# ============================================================
-# ESTILOS CSS ADICIONALES
-# ============================================================
-
-st.markdown("""
-<style>
-    .stMetric {
-        background-color: #f0f2f6;
-        padding: 10px;
-        border-radius: 10px;
-        border-left: 4px solid #4ECDC4;
-    }
-    
-    .stPlotlyChart {
-        border-radius: 10px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    
-    h1, h2, h3 {
-        color: #2c3e50;
-    }
-    
-    .stButton button {
-        width: 100%;
-    }
-</style>
-""", unsafe_allow_html=True)
