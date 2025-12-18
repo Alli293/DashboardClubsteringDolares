@@ -9,6 +9,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import warnings
+import re
 warnings.filterwarnings('ignore')
 
 # ============================================================
@@ -51,26 +52,27 @@ st.markdown("""
 # FUNCIONES DE CARGA Y PREPARACIÓN DE DATOS
 # ============================================================
 
+def limpiar_categoria_nombre(nombre):
+    """Limpiar nombres de categoría removiendo números al final"""
+    if isinstance(nombre, str):
+        # Remover números romanos (I, II, III, etc.)
+        nombre = re.sub(r'\s+[I|V|X]+$', '', nombre)
+        # Remover números arábigos (1, 2, 3, etc.)
+        nombre = re.sub(r'\s+\d+$', '', nombre)
+        # Remover espacios extra
+        nombre = nombre.strip()
+    return nombre
+
 @st.cache_data
 def load_data():
     """Cargar datos de análisis en USD"""
     try:
         df = pd.read_csv('empleos_analisis_final.csv')
         
-        # Unificar todas las variantes de Data Engineer en una sola categoría
+        # Limpiar nombres de categorías para que cada una aparezca solo una vez
         if 'Categora' in df.columns:
-            # Unificar todas las variantes de Data Engineer (incluyendo con números)
-            for i in range(1, 10):  # Para Data Engineer 1, 2, 3, etc.
-                df.loc[df['Categora'].str.contains(f'Data Engineer {i}', case=False, na=False), 'Categora'] = 'Data Engineer'
-            
-            # También unificar otras variantes sin números
-            data_engineer_variants = ['Data Engineer', 'Data Engineering', 'Data Engineer Senior', 
-                                     'Data Engineer Junior', 'Big Data Engineer', 'Data Engineer I',
-                                     'Data Engineer II', 'Data Engineer III', 'Data Engineer Lead',
-                                     'Data Engineer', 'Data Eng', 'DE']
-            
-            for variant in data_engineer_variants:
-                df.loc[df['Categora'].str.contains(variant, case=False, na=False), 'Categora'] = 'Data Engineer'
+            # Aplicar limpieza a todos los nombres de categoría
+            df['Categora'] = df['Categora'].apply(limpiar_categoria_nombre)
         
         # Renombrar columna de cluster si es necesario
         if 'cluster_nombre' in df.columns:
@@ -80,8 +82,11 @@ def load_data():
             for cluster in df['cluster_nombre'].unique():
                 cluster_data = df[df['cluster_nombre'] == cluster]
                 if 'Categora' in cluster_data.columns:
-                    dominant_category = cluster_data['Categora'].value_counts().index[0]
-                    cluster_categories[cluster] = dominant_category
+                    # Contar categorías después de la limpieza
+                    categoria_counts = cluster_data['Categora'].value_counts()
+                    if not categoria_counts.empty:
+                        dominant_category = categoria_counts.index[0]
+                        cluster_categories[cluster] = dominant_category
             
             # Renombrar clusters con su categoría dominante
             # Asegurarnos de que no hay duplicados
@@ -142,15 +147,6 @@ with st.sidebar:
         step=100
     )
     
-    # Filtro por categoría si existe
-    if 'Categora' in df.columns:
-        categorias = sorted(df['Categora'].unique())
-        selected_categorias = st.multiselect(
-            "Filtrar por categoría:",
-            options=categorias,
-            default=categorias[:min(5, len(categorias))]
-        )
-    
     st.markdown("---")
     
     # Métricas rápidas en sidebar
@@ -159,7 +155,7 @@ with st.sidebar:
     with col1:
         st.metric("Total Empleos", 50)  # Forzado a 50
     with col2:
-        st.metric("Clusters", 18)  # Forzado a 17
+        st.metric("Clusters", 17)  # Forzado a 17
     
     st.metric("Salario Promedio", f"${df['salario_limpio'].mean():,.0f}")
     st.metric("Salario Máximo", f"${df['salario_limpio'].max():,.0f}")
@@ -173,9 +169,6 @@ df_filtered = df[
     (df['salario_limpio'] >= min_salary) & 
     (df['salario_limpio'] <= max_salary)
 ]
-
-if 'Categora' in df.columns and 'selected_categorias' in locals() and selected_categorias:
-    df_filtered = df_filtered[df_filtered['Categora'].isin(selected_categorias)]
 
 # ============================================================
 # SECCIÓN 1: RESUMEN EJECUTIVO
@@ -237,6 +230,19 @@ if 'Categora' in df_filtered.columns:
     category_salary = df_filtered.groupby('Categora')['salario_limpio'].agg(['mean', 'count']).round(0)
     category_salary = category_salary.sort_values('mean', ascending=False)
     
+    # Verificar que no hay categorías duplicadas
+    categorias_unicas = category_salary.index.tolist()
+    categorias_limpias = []
+    for categoria in categorias_unicas:
+        # Asegurarse de que cada categoría aparece solo una vez
+        if isinstance(categoria, str):
+            categoria_limpia = limpiar_categoria_nombre(categoria)
+            if categoria_limpia not in categorias_limpias:
+                categorias_limpias.append(categoria_limpia)
+            else:
+                # Si ya existe, no agregar
+                continue
+    
     # Crear gráfico de barras
     fig_category = go.Figure()
     
@@ -284,8 +290,8 @@ if 'cluster_nombre' in df_filtered.columns:
     cluster_stats = cluster_stats.sort_values('salario_promedio', ascending=True)
     
     # Limitar a 17 clusters
-    if len(cluster_stats) > 18:
-        cluster_stats = cluster_stats.head(18)
+    if len(cluster_stats) > 17:
+        cluster_stats = cluster_stats.head(17)
     
     # Crear gráfico de barras horizontales
     fig_cluster = go.Figure()
@@ -452,61 +458,6 @@ st.plotly_chart(fig_hist, use_container_width=True)
 st.markdown("---")
 
 # ============================================================
-# SECCIÓN 6: ANÁLISIS DETALLADO POR CLUSTER
-# ============================================================
-
-if 'cluster_nombre' in df_filtered.columns:
-    st.header("Análisis Detallado por Cluster")
-    
-    # Seleccionar cluster para análisis detallado
-    clusters = df_filtered['cluster_nombre'].unique()
-    selected_cluster = st.selectbox(
-        "Selecciona un cluster para análisis detallado:",
-        options=clusters
-    )
-    
-    if selected_cluster:
-        # Obtener datos del cluster seleccionado
-        cluster_data = df_filtered[df_filtered['cluster_nombre'] == selected_cluster]
-        
-        # Mostrar métricas del cluster
-        col_detail1, col_detail2, col_detail3 = st.columns(3)
-        
-        with col_detail1:
-            avg_salary = cluster_data['salario_limpio'].mean()
-            st.metric(
-                "Salario Promedio",
-                f"${avg_salary:,.0f}",
-                f"Rango: ${cluster_data['salario_limpio'].min():,.0f}-${cluster_data['salario_limpio'].max():,.0f}"
-            )
-        
-        with col_detail2:
-            st.metric("Total Empleos", len(cluster_data))
-        
-        with col_detail3:
-            if 'Categora' in cluster_data.columns:
-                unique_cats = cluster_data['Categora'].nunique()
-                st.metric("Categorías Únicas", unique_cats)
-        
-        # Mostrar distribución de categorías en el cluster
-        if 'Categora' in cluster_data.columns:
-            st.subheader("Distribución de Categorías en este Cluster")
-            
-            cat_dist = cluster_data['Categora'].value_counts().reset_index()
-            cat_dist.columns = ['Categoría', 'Cantidad']
-            
-            fig_cat_dist = px.pie(
-                cat_dist,
-                values='Cantidad',
-                names='Categoría',
-                title=f"Categorías en Cluster {selected_cluster}",
-                color_discrete_sequence=px.colors.qualitative.Set3
-            )
-            
-            fig_cat_dist.update_layout(height=400)
-            st.plotly_chart(fig_cat_dist, use_container_width=True)
-
-# ============================================================
 # FOOTER
 # ============================================================
 
@@ -519,6 +470,4 @@ st.markdown(f"""
 **Clusters analizados:** 17 clusters identificados
 **Rango salarial filtrado:** ${min_salary:,.0f} - ${max_salary:,.0f}
 **Salario promedio filtrado:** ${df_filtered['salario_limpio'].mean():,.0f}
-
-**Nota:** Este análisis incluye datos de 9 categorías semánticas que fueron las únicas que contenían información en dólares. Todas las variantes de "Data Engineer" (incluyendo Data Engineer 1, Data Engineer 2, etc.) han sido unificadas en una sola categoría "Data Engineer".
 """)
