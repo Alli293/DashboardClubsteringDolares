@@ -212,7 +212,7 @@ with col3:
 with col4:
     st.metric(
         label="Clusters Analizados",
-        value="17",  # Forzado a 17
+        value="18",  # Forzado a 17
         delta="100% cobertura"
     )
 
@@ -406,7 +406,7 @@ st.markdown(f"""
 **Información del Análisis:**
 
 **Empleos analizados:** 50 empleos (total del dataset filtrado)
-**Clusters analizados:** 17 clusters identificados
+**Clusters analizados:** 18 clusters analizados
 **Rango salarial filtrado:** ${min_salary:,.0f} - ${max_salary:,.0f}
 **Salario promedio filtrado:** ${df_filtered['salario_limpio'].mean():,.0f}
 """)
