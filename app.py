@@ -1,236 +1,172 @@
 # ============================================================
-# DASHBOARD DE ANÁLISIS DE CLUSTERS SALARIALES (USD)
+# DASHBOARD DE ANÁLISIS SALARIAL (USD) – LIMPIO Y ACADÉMICO
 # ============================================================
 
 import streamlit as st
 import pandas as pd
 import numpy as np
+import plotly.express as px
 import plotly.graph_objects as go
-from sklearn.metrics import silhouette_score, adjusted_rand_score
-from sklearn.preprocessing import LabelEncoder
 import warnings
 warnings.filterwarnings("ignore")
 
-# ============================================================
-# CONFIGURACIÓN DE PÁGINA
-# ============================================================
-
+# ------------------------------------------------------------
+# CONFIGURACIÓN
+# ------------------------------------------------------------
 st.set_page_config(
-    page_title="Dashboard de Clusters Salariales (USD)",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    page_title="Análisis Salarial por Categoría",
+    layout="wide"
 )
 
-# ============================================================
-# CARGA DE DATOS
-# ============================================================
+st.title("Análisis Salarial por Categoría (USD)")
 
+# ------------------------------------------------------------
+# CARGA DE DATOS
+# ------------------------------------------------------------
 @st.cache_data
 def load_data():
     df = pd.read_csv("empleos_analisis_final.csv")
+    return df
 
-    categoria_col = "Categora"
+df = load_data()
 
-    cluster_summary = df.groupby("cluster_nombre").agg(
-        salario_promedio=("salario_limpio", "mean"),
-        salario_min=("salario_limpio", "min"),
-        salario_max=("salario_limpio", "max"),
-        n_empleos=("salario_limpio", "count"),
-        categoria_principal=(categoria_col, lambda x: x.value_counts().idxmax())
-    ).round(0)
+# ------------------------------------------------------------
+# PREPARACIÓN: CLUSTERS → CATEGORÍA DOMINANTE
+# ------------------------------------------------------------
+categoria_dominante = (
+    df.groupby("cluster_nombre")["Categora"]
+    .agg(lambda x: x.value_counts().idxmax())
+    .to_dict()
+)
 
-    cluster_summary = cluster_summary.sort_values(
-        "salario_promedio", ascending=False
+df["Cluster_Categoria"] = df["cluster_nombre"].map(categoria_dominante)
+
+# Evitar nombres repetidos
+counts = df["Cluster_Categoria"].value_counts()
+repeated = counts[counts > 1].index.tolist()
+
+if repeated:
+    for cat in repeated:
+        idxs = df[df["Cluster_Categoria"] == cat]["cluster_nombre"].unique()
+        for i, cl in enumerate(idxs, start=1):
+            df.loc[df["cluster_nombre"] == cl, "Cluster_Categoria"] = f"{cat} ({i})"
+
+# ------------------------------------------------------------
+# FILTRO SALARIAL
+# ------------------------------------------------------------
+min_sal, max_sal = int(df.salario_limpio.min()), int(df.salario_limpio.max())
+rango = st.slider(
+    "Rango salarial (USD)",
+    min_sal, max_sal, (min_sal, max_sal)
+)
+
+df = df[(df.salario_limpio >= rango[0]) & (df.salario_limpio <= rango[1])]
+
+# ============================================================
+# GRÁFICO 1 – BOXPLOT SALARIAL POR CATEGORÍA
+# ============================================================
+st.markdown("**Distribución salarial mensual por categoría laboral.**")
+
+fig_box = px.box(
+    df,
+    x="Categora",
+    y="salario_limpio",
+    points="outliers"
+)
+fig_box.update_layout(
+    yaxis_title="Salario mensual (USD)",
+    xaxis_title="Categoría"
+)
+
+st.plotly_chart(fig_box, use_container_width=True)
+
+# ============================================================
+# GRÁFICO 2 – SALARIO PROMEDIO POR CATEGORÍA
+# ============================================================
+st.markdown("**Comparación del salario promedio mensual entre categorías.**")
+
+avg_cat = df.groupby("Categora")["salario_limpio"].mean().sort_values()
+
+fig_avg_cat = px.bar(
+    avg_cat,
+    orientation="h",
+    labels={"value": "Salario promedio (USD)", "index": "Categoría"}
+)
+
+st.plotly_chart(fig_avg_cat, use_container_width=True)
+
+# ============================================================
+# GRÁFICO 3 – SALARIO PROMEDIO POR CLUSTER SALARIAL
+# ============================================================
+st.markdown("**Salario promedio mensual según agrupación salarial.**")
+
+avg_cluster = (
+    df.groupby("Cluster_Categoria")["salario_limpio"]
+    .mean()
+    .sort_values()
+)
+
+fig_cluster = px.bar(
+    avg_cluster,
+    orientation="h",
+    labels={"value": "Salario promedio (USD)", "index": "Cluster (categoría dominante)"}
+)
+
+st.plotly_chart(fig_cluster, use_container_width=True)
+
+# ============================================================
+# GRÁFICO 4 – PIRÁMIDE SALARIAL
+# ============================================================
+st.markdown("**Jerarquía salarial de los clusters según ingreso promedio.**")
+
+fig_piramide = go.Figure(
+    go.Bar(
+        x=avg_cluster.values,
+        y=avg_cluster.index,
+        orientation="h",
+        text=[f"${v:,.0f}" for v in avg_cluster.values],
+        textposition="outside"
     )
+)
 
-    return df, cluster_summary, categoria_col
+fig_piramide.update_layout(
+    xaxis_title="Salario promedio (USD)",
+    yaxis_title="Cluster",
+    height=500
+)
 
-df, cluster_summary, categoria_col = load_data()
+st.plotly_chart(fig_piramide, use_container_width=True)
 
 # ============================================================
-# SIDEBAR
+# GRÁFICO 5 – TRAYECTORIAS PROFESIONALES
 # ============================================================
+st.markdown("**Evolución salarial estimada según trayectoria formativa y técnica.**")
 
-with st.sidebar:
-    st.header("Configuración")
+trayectorias = {
+    "Trayectoria técnica": {
+        "etapas": ["Sin titulación", "Nivel técnico", "Técnico senior"],
+        "salarios": [1200, 2200, 3800]
+    }
+}
 
-    min_salary, max_salary = st.slider(
-        "Rango salarial (USD)",
-        int(df["salario_limpio"].min()),
-        int(df["salario_limpio"].max()),
-        (
-            int(df["salario_limpio"].min()),
-            int(df["salario_limpio"].max())
+fig_tray = go.Figure()
+
+for nombre, t in trayectorias.items():
+    fig_tray.add_trace(
+        go.Scatter(
+            x=t["etapas"],
+            y=t["salarios"],
+            mode="lines+markers+text",
+            name=nombre,
+            text=[f"${s:,.0f}" for s in t["salarios"]],
+            textposition="top center"
         )
     )
 
-    n_clusters = st.slider(
-        "Cantidad de clusters a mostrar",
-        min_value=3,
-        max_value=15,
-        value=7
-    )
-
-# ============================================================
-# FILTROS
-# ============================================================
-
-df_filtered = df[
-    (df["salario_limpio"] >= min_salary) &
-    (df["salario_limpio"] <= max_salary)
-]
-
-cluster_filtered = cluster_summary.head(n_clusters)
-
-# ============================================================
-# SECCIÓN 1: PIRÁMIDE SALARIAL (SEMÁNTICA)
-# ============================================================
-
-st.header("Pirámide Salarial por Categoría")
-st.write("Distribución del salario promedio usando la categoría dominante de cada cluster.")
-
-fig_pyramid = go.Figure(go.Bar(
-    y=cluster_filtered["categoria_principal"],
-    x=cluster_filtered["salario_promedio"],
-    orientation="h",
-    text=[f"${x:,.0f}" for x in cluster_filtered["salario_promedio"]],
-    textposition="outside"
-))
-
-fig_pyramid.update_layout(
-    height=450,
-    xaxis_title="Salario promedio mensual (USD)",
-    yaxis_title="Categoría"
+fig_tray.update_layout(
+    yaxis_title="Salario mensual (USD)",
+    xaxis_title="Etapa profesional",
+    height=450
 )
 
-st.plotly_chart(fig_pyramid, use_container_width=True)
-
-# ============================================================
-# SECCIÓN 2: MÉTRICAS DE CALIDAD DEL CLUSTERING
-# ============================================================
-
-st.header("Métricas de Calidad del Clustering")
-
-encoded_categories = LabelEncoder().fit_transform(
-    df_filtered[categoria_col].astype(str)
-)
-
-silhouette = silhouette_score(
-    df_filtered[["salario_limpio"]],
-    df_filtered["cluster_nombre"]
-)
-
-ari = adjusted_rand_score(
-    encoded_categories,
-    df_filtered["cluster_nombre"]
-)
-
-col1, col2 = st.columns(2)
-
-with col1:
-    st.metric("Silhouette Score", f"{silhouette:.3f}")
-
-with col2:
-    st.metric("ARI (Clusters vs Categoría)", f"{ari:.3f}")
-
-# ============================================================
-# SECCIÓN 3: TRAYECTORIAS PROFESIONALES (DESDE DATOS)
-# ============================================================
-
-st.header("Trayectorias Profesionales y Evolución Salarial")
-st.write("Evolución salarial calculada a partir de las categorías laborales reales.")
-
-niveles = {
-    "Sin titulación": ["practica", "trainee", "junior", "entry"],
-    "Técnico level": ["tecnico", "analista"],
-    "Técnico senior": ["senior", "lead"],
-    "Asistente": ["asistente"],
-    "Coordinador": ["coordinador"],
-    "Gerente": ["gerente"],
-    "Director": ["director"]
-}
-
-trayectoria_data = []
-
-for nivel, palabras in niveles.items():
-    mask = df_filtered[categoria_col].str.lower().str.contains(
-        "|".join(palabras), na=False
-    )
-    if mask.sum() >= 5:
-        trayectoria_data.append({
-            "nivel": nivel,
-            "salario": df_filtered.loc[mask, "salario_limpio"].mean()
-        })
-
-trayectoria_df = pd.DataFrame(trayectoria_data)
-
-fig_trayectorias = go.Figure(go.Scatter(
-    x=trayectoria_df["nivel"],
-    y=trayectoria_df["salario"],
-    mode="lines+markers+text",
-    text=[f"${x:,.0f}" for x in trayectoria_df["salario"]],
-    textposition="top center"
-))
-
-fig_trayectorias.update_layout(
-    height=450,
-    xaxis_title="Nivel profesional",
-    yaxis_title="Salario mensual (USD)"
-)
-
-st.plotly_chart(fig_trayectorias, use_container_width=True)
-
-# ============================================================
-# TEXTO ENRIQUECIDO
-# ============================================================
-
-st.markdown(
-    f"""
-    **Análisis de las trayectorias profesionales**
-
-    Los resultados muestran una progresión salarial clara conforme aumenta el nivel profesional.
-    Los perfiles iniciales asociados a **sin titulación** presentan los salarios más bajos,
-    mientras que los niveles de **técnico senior** y roles de **coordinación y dirección**
-    concentran los mayores ingresos.
-
-    En promedio, el salario se incrementa de **${trayectoria_df.iloc[0]['salario']:,.0f}**
-    en los niveles iniciales a **${trayectoria_df.iloc[-1]['salario']:,.0f}**
-    en los niveles más altos, evidenciando el impacto directo de la experiencia,
-    la especialización y la responsabilidad laboral.
-    """
-)
-
-# ============================================================
-# SECCIÓN 4: PERFIL DETALLADO POR CATEGORÍA
-# ============================================================
-
-st.header("Perfil Detallado por Categoría")
-
-selected_category = st.selectbox(
-    "Selecciona una categoría",
-    cluster_filtered["categoria_principal"].unique()
-)
-
-category_clusters = cluster_filtered[
-    cluster_filtered["categoria_principal"] == selected_category
-]
-
-avg_salary = category_clusters["salario_promedio"].mean()
-total_jobs = category_clusters["n_empleos"].sum()
-
-col1, col2 = st.columns(2)
-
-with col1:
-    st.metric("Salario promedio", f"${avg_salary:,.0f}")
-
-with col2:
-    st.metric("Total de empleos", int(total_jobs))
-
-st.dataframe(
-    df_filtered[df_filtered[categoria_col] == selected_category][
-        ["Título", "Empresa", "salario_limpio"]
-    ]
-    .rename(columns={"salario_limpio": "Salario USD"})
-    .head(10),
-    use_container_width=True
-)
+st.plotly_chart(fig_tray, use_container_width=True)
