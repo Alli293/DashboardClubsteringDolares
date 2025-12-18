@@ -155,7 +155,7 @@ with st.sidebar:
     with col1:
         st.metric("Total Empleos", 50)  # Forzado a 50
     with col2:
-        st.metric("Clusters", 17)  # Forzado a 17
+        st.metric("Clusters", 18)  # Forzado a 17
     
     st.metric("Salario Promedio", f"${df['salario_limpio'].mean():,.0f}")
     st.metric("Salario Máximo", f"${df['salario_limpio'].max():,.0f}")
@@ -269,67 +269,6 @@ if 'Categora' in df_filtered.columns:
     )
     
     st.plotly_chart(fig_category, use_container_width=True)
-
-st.markdown("---")
-
-# ============================================================
-# SECCIÓN 3: DISTRIBUCIÓN SALARIAL POR CLUSTER
-# ============================================================
-
-if 'cluster_nombre' in df_filtered.columns:
-    st.header("Salario Promedio por Cluster")
-    st.write("Análisis de clusters salariales identificados por algoritmo de agrupamiento.")
-    
-    # Calcular estadísticas por cluster
-    cluster_stats = df_filtered.groupby('cluster_nombre').agg({
-        'salario_limpio': ['mean', 'min', 'max', 'count'],
-        'Categora': lambda x: x.value_counts().index[0] if len(x) > 0 else 'N/A'
-    }).round(0)
-    
-    cluster_stats.columns = ['salario_promedio', 'salario_min', 'salario_max', 'n_empleos', 'categoria_principal']
-    cluster_stats = cluster_stats.sort_values('salario_promedio', ascending=True)
-    
-    # Limitar a 17 clusters
-    if len(cluster_stats) > 17:
-        cluster_stats = cluster_stats.head(17)
-    
-    # Crear gráfico de barras horizontales
-    fig_cluster = go.Figure()
-    
-    fig_cluster.add_trace(go.Bar(
-        y=cluster_stats.index.tolist(),
-        x=cluster_stats['salario_promedio'],
-        orientation='h',
-        marker_color=px.colors.sequential.Plasma[:len(cluster_stats)],
-        text=[f"${x:,.0f}" for x in cluster_stats['salario_promedio']],
-        textposition='outside',
-        hovertemplate='<b>%{y}</b><br>' +
-                     'Salario promedio: $%{x:,.0f}<br>' +
-                     'Empleos: %{customdata[0]}<br>' +
-                     'Categoría: %{customdata[1]}<extra></extra>',
-        customdata=np.column_stack((cluster_stats['n_empleos'], cluster_stats['categoria_principal']))
-    ))
-    
-    # Añadir línea de promedio general
-    promedio_general = df_filtered['salario_limpio'].mean()
-    fig_cluster.add_vline(
-        x=promedio_general,
-        line_dash="dash",
-        line_color="red",
-        annotation_text=f"Promedio General: ${promedio_general:,.0f}",
-        annotation_position="top right"
-    )
-    
-    fig_cluster.update_layout(
-        height=500,
-        title="Distribución Salarial por Cluster (17 clusters analizados)",
-        xaxis_title="Salario Promedio Mensual (USD)",
-        yaxis_title="Cluster",
-        showlegend=False,
-        margin=dict(l=0, r=0, t=40, b=0)
-    )
-    
-    st.plotly_chart(fig_cluster, use_container_width=True)
 
 st.markdown("---")
 
