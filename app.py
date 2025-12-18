@@ -57,12 +57,17 @@ def load_data():
     try:
         df = pd.read_csv('empleos_analisis_final.csv')
         
-        # Unificar todas las variantes de Data Engineer
+        # Unificar todas las variantes de Data Engineer en una sola categoría
         if 'Categora' in df.columns:
-            # Unificar todas las variantes de Data Engineer en una sola categoría
+            # Unificar todas las variantes de Data Engineer (incluyendo con números)
+            for i in range(1, 10):  # Para Data Engineer 1, 2, 3, etc.
+                df.loc[df['Categora'].str.contains(f'Data Engineer {i}', case=False, na=False), 'Categora'] = 'Data Engineer'
+            
+            # También unificar otras variantes sin números
             data_engineer_variants = ['Data Engineer', 'Data Engineering', 'Data Engineer Senior', 
                                      'Data Engineer Junior', 'Big Data Engineer', 'Data Engineer I',
-                                     'Data Engineer II', 'Data Engineer III', 'Data Engineer Lead']
+                                     'Data Engineer II', 'Data Engineer III', 'Data Engineer Lead',
+                                     'Data Engineer', 'Data Eng', 'DE']
             
             for variant in data_engineer_variants:
                 df.loc[df['Categora'].str.contains(variant, case=False, na=False), 'Categora'] = 'Data Engineer'
@@ -154,7 +159,7 @@ with st.sidebar:
     with col1:
         st.metric("Total Empleos", 50)  # Forzado a 50
     with col2:
-        st.metric("Clusters", 17)  # Forzado a 17
+        st.metric("Clusters", 18)  # Forzado a 17
     
     st.metric("Salario Promedio", f"${df['salario_limpio'].mean():,.0f}")
     st.metric("Salario Máximo", f"${df['salario_limpio'].max():,.0f}")
@@ -279,8 +284,8 @@ if 'cluster_nombre' in df_filtered.columns:
     cluster_stats = cluster_stats.sort_values('salario_promedio', ascending=True)
     
     # Limitar a 17 clusters
-    if len(cluster_stats) > 17:
-        cluster_stats = cluster_stats.head(17)
+    if len(cluster_stats) > 18:
+        cluster_stats = cluster_stats.head(18)
     
     # Crear gráfico de barras horizontales
     fig_cluster = go.Figure()
@@ -515,5 +520,5 @@ st.markdown(f"""
 **Rango salarial filtrado:** ${min_salary:,.0f} - ${max_salary:,.0f}
 **Salario promedio filtrado:** ${df_filtered['salario_limpio'].mean():,.0f}
 
-**Nota:** Este análisis incluye datos de 9 categorías semánticas que fueron las únicas que contenían información en dólares. Todas las variantes de "Data Engineer" han sido unificadas en una sola categoría.
+**Nota:** Este análisis incluye datos de 9 categorías semánticas que fueron las únicas que contenían información en dólares. Todas las variantes de "Data Engineer" (incluyendo Data Engineer 1, Data Engineer 2, etc.) han sido unificadas en una sola categoría "Data Engineer".
 """)
