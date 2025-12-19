@@ -177,10 +177,10 @@ df_filtered = df[
 st.header("Resumen Ejecutivo")
 
 # Nota sobre las categorías semánticas
-st.info("**Nota:** Este análisis incluye datos de 9 categorías semánticas que fueron las únicas que contenían información en dólares.")
+st.info("**Nota:** Este análisis incluye solamente  datos de los cluster semánticos  que contenían información en dólares.")
 
 # Crear columnas para métricas
-col1, col2, col3, col4 = st.columns(4)
+col1, col2, col4 = st.columns(3)
 
 with col1:
     avg_salary = df_filtered['salario_limpio'].mean()
@@ -196,18 +196,7 @@ with col2:
         delta="100% del total"
     )
 
-with col3:
-    if 'cluster_nombre' in df_filtered.columns:
-        cluster_avg = df_filtered.groupby('cluster_nombre')['salario_limpio'].mean()
-        top_cluster = cluster_avg.idxmax()
-        top_salary = cluster_avg.max()
-        st.metric(
-            label="Cluster Mejor Pagado",
-            value=top_cluster,
-            delta=f"${top_salary:,.0f}"
-        )
-    else:
-        st.metric("Categorías", df_filtered['Categora'].nunique())
+
 
 with col4:
     st.metric(
@@ -349,50 +338,6 @@ for idx, (nombre, datos) in enumerate(trayectorias.items()):
                 value=f"+{crecimiento:.0f}%",
                 delta=f"De ${datos['salarios'][0]:,.0f} a ${datos['salarios'][-1]:,.0f}"
             )
-
-st.markdown("---")
-
-# ============================================================
-# SECCIÓN 5: DISTRIBUCIÓN DE SALARIOS
-# ============================================================
-
-st.header("Distribución de Salarios")
-st.write("Histograma que muestra la frecuencia de diferentes rangos salariales.")
-
-# Crear histograma
-fig_hist = px.histogram(
-    df_filtered,
-    x='salario_limpio',
-    nbins=30,
-    title="Distribución de Salarios Mensuales",
-    labels={'salario_limpio': 'Salario Mensual (USD)', 'count': 'Número de Empleos'},
-    color_discrete_sequence=['#26d0ce']
-)
-
-# Añadir líneas de referencia
-fig_hist.add_vline(
-    x=df_filtered['salario_limpio'].mean(),
-    line_dash="dash",
-    line_color="red",
-    annotation_text=f"Promedio: ${df_filtered['salario_limpio'].mean():,.0f}",
-    annotation_position="top right"
-)
-
-fig_hist.add_vline(
-    x=df_filtered['salario_limpio'].median(),
-    line_dash="dash",
-    line_color="green",
-    annotation_text=f"Mediana: ${df_filtered['salario_limpio'].median():,.0f}",
-    annotation_position="top left"
-)
-
-fig_hist.update_layout(
-    height=500,
-    showlegend=False,
-    bargap=0.1
-)
-
-st.plotly_chart(fig_hist, use_container_width=True)
 
 st.markdown("---")
 
